@@ -1,0 +1,9 @@
+AllocateAI - SIH25033
+MAIN APPLICATION: app/ (PRAGATI foundation)
+AI REFERENCE: source-references/suyash-ml/
+UI REFERENCE: source-references/sih-bsod/
+
+Do not merge the reference backend/frontend folders into app.
+First validate the unchanged PRAGATI application.
+Only integrate tested modules through explicit API contracts.
+Policies and quota values are illustrative until verified.
