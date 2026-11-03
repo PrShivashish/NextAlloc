@@ -32,7 +32,13 @@ public class AuthService {
     public record LoginResult(String token, Map<String, Object> user) { }
 
     public LoginResult login(String email, String password) {
-        User user = users.findByEmail(email.trim().toLowerCase())
+        String cleanEmail = email == null ? "" : email.trim().toLowerCase();
+        User user = users.findByEmail(cleanEmail)
+                .or(() -> cleanEmail.endsWith("@nextalloc.in")
+                        ? users.findByEmail(cleanEmail.replace("@nextalloc.in", "@pragati.gov.in"))
+                        : cleanEmail.endsWith("@pragati.gov.in")
+                                ? users.findByEmail(cleanEmail.replace("@pragati.gov.in", "@nextalloc.in"))
+                                : java.util.Optional.empty())
                 .orElseThrow(() -> ApiException.badRequest("Incorrect email or password."));
         if (user.status != UserStatus.ACTIVE) {
             throw ApiException.forbidden("This account is disabled. Contact an administrator.");
