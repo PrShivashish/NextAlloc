@@ -104,7 +104,7 @@ In accordance with Phase 4 guidelines ("Preserve runtime compatibility: do not b
 | **Frontend Production Build** | `npm run build` (`vite build`) | **PASSED** | Bundled clean distribution in 7.49s |
 | **Frontend Dist Sync** | Copy `dist/*` → `backend/frontend-dist` | **PASSED** | Verified HTML and assets updated |
 | **Backend Java Compile** | `mvn test-compile` | **PASSED** | Compiled 101 main classes and 6 test classes |
-| **Backend Unit & Integration Tests** | `mvn surefire:test` | **PASSED** | **36 of 36 tests passed**, 0 failures, 0 errors, 0 skipped (AnalyticsServiceTest, ReadinessServiceTest, ResumeFlowTest, ResumeIntelligenceServiceTest, ResumeUploadTest, SuitabilityServiceTest) |
+| **Backend Unit & Integration Tests** | `mvn test` | **PASSED** | **40 of 40 tests passed**, 0 failures, 0 errors, 0 skipped (AuthServiceTest, AnalyticsServiceTest, ReadinessServiceTest, ResumeFlowTest, ResumeIntelligenceServiceTest, ResumeUploadTest, SuitabilityServiceTest) |
 | **Docker Compose Config** | `docker compose config` | **PASSED** | Syntactically and structurally valid configuration |
 | **Python AI & Optimizer Tests** | `pytest app/ai-service/tests` | **PASSED** | **21 of 21 tests passed** (Optimizer capacity, at-most-one-per-candidate, global vs sequential swap, infeasibility rules, determinism, NLP skill extraction, gap guidance) |
 
