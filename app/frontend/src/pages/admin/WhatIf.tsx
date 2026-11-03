@@ -77,6 +77,91 @@ export default function AdminWhatIf() {
   let lastMetrics: any = null;
   try { if (lastSim?.metricsJson) lastMetrics = JSON.parse(lastSim.metricsJson); } catch { }
 
+  const simulationStatus = (lastSim?.status ?? '').toLowerCase();
+
+  const hasComparisonMetrics =
+    lastMetrics !== null &&
+    typeof lastMetrics === 'object' &&
+    ['current', 'scenario'].every(section =>
+      lastMetrics[section] !== null &&
+      typeof lastMetrics[section] === 'object' &&
+      [
+        'allocated',
+        'suitability',
+        'preferenceSatisfaction',
+        'seatUtilization',
+      ].every(field =>
+        typeof lastMetrics[section][field] === 'number' &&
+        Number.isFinite(lastMetrics[section][field])
+      )
+    ) &&
+    typeof lastMetrics.affected === 'number' &&
+    Number.isFinite(lastMetrics.affected) &&
+    typeof lastMetrics.stability === 'number' &&
+    Number.isFinite(lastMetrics.stability);
+
+  const renderLatestSimulation = () => {
+    if (lastSimRunning) {
+      return (
+        <div className="card p-5">
+          <Spinner label="Running policy simulation…" />
+        </div>
+      );
+    }
+    if (simulationStatus === 'infeasible' || simulationStatus.includes('infeasible')) {
+      return (
+        <div className="card p-5">
+          <SectionHeader title="Simulation infeasible" />
+          <p className="text-sm text-navy-600">
+            {typeof lastMetrics?.note === 'string'
+              ? lastMetrics.note
+              : 'The selected policy constraints cannot all be satisfied.'}
+          </p>
+          <p className="mt-2 text-sm text-navy-500">
+            No new allocation was published.
+            The baseline allocation remains unchanged.
+          </p>
+        </div>
+      );
+    }
+    if (simulationStatus === 'failed' || simulationStatus.includes('failed')) {
+      return (
+        <div className="card p-5">
+          <Callout tone="warn">
+            Simulation failed. Review the service logs before retrying.
+          </Callout>
+        </div>
+      );
+    }
+    if ((simulationStatus === 'completed' || simulationStatus.includes('completed')) && hasComparisonMetrics) {
+      return (
+        <div className="card p-5">
+          <SectionHeader title="Latest simulation" sub={`${lastSim?.policyName} vs current policy · ${fmtMs(lastSim.runtimeMs)}`}
+            right={<Badge tone={statusTone(lastSim?.status ?? '')} dot>{lastSim?.status}</Badge>} />
+          <div className="space-y-1.5">
+            <SimRow k="Candidates allocated" a={lastMetrics.current.allocated} b={lastMetrics.scenario.allocated} />
+            <SimRow k="Average suitability" a={lastMetrics.current.suitability} b={lastMetrics.scenario.suitability} pct />
+            <SimRow k="Preference match" a={lastMetrics.current.preferenceSatisfaction} b={lastMetrics.scenario.preferenceSatisfaction} pct />
+            <SimRow k="Seat utilization" a={lastMetrics.current.seatUtilization} b={lastMetrics.scenario.seatUtilization} pct />
+          </div>
+          <div className="mt-4 rounded-xl bg-saffron-50/70 p-3.5 text-[12.5px] leading-relaxed text-navy-700 ring-1 ring-saffron-200">
+            <b>{lastMetrics.affected}</b> candidate{lastMetrics.affected === 1 ? '' : 's'} would change seats; {fmtPct(lastMetrics.stability)} of assignments stay put.
+            This is a sandbox — the published allocation is unchanged.
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="card p-5">
+        <EmptyState
+          title="No valid simulation comparison available"
+          hint="Start a simulation or inspect the saved result."
+          icon={<FlaskConical className="h-8 w-8" />}
+        />
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-5">
       <div>
@@ -160,26 +245,7 @@ export default function AdminWhatIf() {
         </div>
 
         <div className="space-y-4 xl:col-span-2">
-          {lastMetrics ? (
-            <div className="card p-5">
-              <SectionHeader title="Latest simulation" sub={`${lastSim?.policyName} vs current policy · ${fmtMs(lastSim.runtimeMs)}`}
-                right={<Badge tone={statusTone(lastSim?.status ?? '')} dot>{lastSim?.status}</Badge>} />
-              <div className="space-y-1.5">
-                <SimRow k="Candidates allocated" a={lastMetrics.current.allocated} b={lastMetrics.scenario.allocated} />
-                <SimRow k="Average suitability" a={lastMetrics.current.suitability} b={lastMetrics.scenario.suitability} pct />
-                <SimRow k="Preference match" a={lastMetrics.current.preferenceSatisfaction} b={lastMetrics.scenario.preferenceSatisfaction} pct />
-                <SimRow k="Seat utilization" a={lastMetrics.current.seatUtilization} b={lastMetrics.scenario.seatUtilization} pct />
-              </div>
-              <div className="mt-4 rounded-xl bg-saffron-50/70 p-3.5 text-[12.5px] leading-relaxed text-navy-700 ring-1 ring-saffron-200">
-                <b>{lastMetrics.affected}</b> candidate{lastMetrics.affected === 1 ? '' : 's'} would change seats; {fmtPct(lastMetrics.stability)} of assignments stay put.
-                This is a sandbox — the published allocation is unchanged.
-              </div>
-            </div>
-          ) : lastSimRunning ? (
-            <div className="card"><Spinner label={`Simulating “${lastSim?.policyName}” against run #${lastSim?.baseRunId}…`} /></div>
-          ) : (
-            <div className="card"><EmptyState title="No simulation yet" hint="Configure a policy on the left and run the first what-if simulation." icon={<FlaskConical className="h-8 w-8" />} /></div>
-          )}
+          {renderLatestSimulation()}
           <div className="card p-5">
             <SectionHeader title="Simulation history" />
             {sims.length === 0 ? <div className="py-4 text-center text-[13px] text-navy-400">Simulations you run will be listed here.</div> : (
