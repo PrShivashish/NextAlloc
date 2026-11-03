@@ -1,4 +1,4 @@
-# PRAGATI — one-command demo (Docker)
+# NextAlloc — one-command demo (Docker)
 #   docker compose up --build
 # Then open http://localhost:8080  (the entire product: UI + API + AI service)
 #

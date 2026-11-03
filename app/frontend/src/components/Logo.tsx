@@ -1,10 +1,9 @@
 import React from 'react';
 
 /**
- * Canonical PRAGATI brand mark.
+ * Canonical NextAlloc brand mark.
  *
- * Renders the single, exact official logo asset (emblem + PRAGATI wordmark +
- * "AI Smart Allocation for PM Internship Scheme" tagline) — the artwork is
+ * Renders the single, exact official logo asset — the artwork is
  * never redrawn, stretched or cropped, and no wordmark text is duplicated
  * beside it. The supplied artwork has a transparent background; `tile`
  * places it on a white brand plate where it sits on dark surfaces.
@@ -13,7 +12,7 @@ export function Logo({ width = 150, tile = false, className = '' }: { width?: nu
   const img = (
     <img
       src="/logo.png"
-      alt="PRAGATI — AI Smart Allocation for PM Internship Scheme"
+      alt="NextAlloc — AI-Powered Internship Allocation Engine"
       style={{ width, height: 'auto', maxWidth: '100%', objectFit: 'contain', display: 'block' }}
       draggable={false}
     />
@@ -30,11 +29,10 @@ export function Logo({ width = 150, tile = false, className = '' }: { width?: nu
 
 /**
  * Compact horizontal lockup for tight header bars: the emblem alone
- * (cropped from the same official artwork, no redrawing) beside the
- * "PRAGATI" wordmark and "SMART ALLOCATION" sub-label set in type. Use
- * this instead of `Logo` anywhere the full stacked mark (icon above
- * wordmark above tagline) is too tall for the space, e.g. a page header
- * that sits directly above other content.
+ * beside the "NextAlloc" wordmark and "AI ALLOCATION" sub-label set in
+ * type. Use this instead of `Logo` anywhere the full stacked mark is too
+ * tall for the space, e.g. a page header that sits directly above other
+ * content.
  */
 export function LogoMark({
   height = 36,
@@ -43,7 +41,7 @@ export function LogoMark({
 }: {
   /** Height of the icon/emblem, in px. */
   height?: number;
-  /** Font size of the "PRAGATI" wordmark, in px. Defaults smaller than the icon. */
+  /** Font size of the "NextAlloc" wordmark, in px. Defaults smaller than the icon. */
   textSize?: number;
   className?: string;
 }) {
@@ -61,15 +59,16 @@ export function LogoMark({
           className="whitespace-nowrap font-display font-extrabold tracking-tight text-white"
           style={{ fontSize: wordmarkSize }}
         >
-          PRAGATI
+          NextAlloc
         </div>
         <div
           className="mt-0.5 whitespace-nowrap font-bold text-saffron-400"
           style={{ fontSize: wordmarkSize * 0.37, letterSpacing: '0.08em' }}
         >
-          SMART ALLOCATION
+          AI ALLOCATION
         </div>
       </div>
     </div>
   );
 }
+

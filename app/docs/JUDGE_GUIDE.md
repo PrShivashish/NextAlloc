@@ -1,4 +1,4 @@
-# PRAGATI — 15-Minute Judge Walkthrough
+﻿# NextAlloc — 15-Minute Judge Walkthrough
 
 The app also has a built-in guided mode: open the **Judge walkthrough** page (admin) and it
 replays this narrative step by step against live data. This document is the script for the

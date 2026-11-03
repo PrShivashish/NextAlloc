@@ -6,9 +6,9 @@ import { errMsg } from '../api/client';
 import { Logo, LogoMark } from '../components/Logo';
 
 const ROLES = [
-  { id: 'admin', label: 'Administrator', sub: 'Command center, runs, policy, fairness', icon: ShieldCheck, email: 'admin@pragati.gov.in', pass: 'Admin@123' },
-  { id: 'provider', label: 'Organisation Partner', sub: 'Publish & manage opportunities', icon: Building2, email: 'provider@pragati.gov.in', pass: 'Provider@123' },
-  { id: 'candidate', label: 'Candidate', sub: 'Profile, readiness, allocation result', icon: User, email: 'candidate@pragati.gov.in', pass: 'Candidate@123' },
+  { id: 'admin', label: 'Administrator', sub: 'Command center, runs, policy, fairness', icon: ShieldCheck, email: 'admin@nextalloc.in', pass: 'Admin@123' },
+  { id: 'provider', label: 'Organisation Partner', sub: 'Publish & manage opportunities', icon: Building2, email: 'provider@nextalloc.in', pass: 'Provider@123' },
+  { id: 'candidate', label: 'Candidate', sub: 'Profile, readiness, allocation result', icon: User, email: 'candidate@nextalloc.in', pass: 'Candidate@123' },
 ];
 
 export default function Login() {
@@ -49,7 +49,7 @@ export default function Login() {
               One allocation engine for the <span className="text-saffron-400">entire candidate population</span>.
             </h1>
             <p className="mt-4 max-w-md text-[14px] leading-relaxed text-navy-200/75">
-              PRAGATI allocates every eligible internship opportunity across all candidates — respecting
+              NextAlloc allocates every eligible internship opportunity across all candidates — respecting
               eligibility, capacity, preferences, geography and policy — and explains every decision.
             </p>
             <div className="mt-8 grid max-w-md grid-cols-3 gap-3">
@@ -68,7 +68,7 @@ export default function Login() {
       <div className="flex flex-1 items-center justify-center px-6 py-10">
         <div className="w-full max-w-[430px]">
           <div className="mb-7 flex justify-center lg:hidden"><Logo width={196} className="max-w-full [&>img]:max-w-full [&>img]:h-auto" /></div>
-          <h2 className="font-display text-[22px] font-bold text-ink">Sign in to PRAGATI</h2>
+          <h2 className="font-display text-[22px] font-bold text-ink">Sign in to NextAlloc</h2>
           <p className="mt-1 text-[13.5px] text-navy-500">Choose a demonstration role — credentials are pre-filled.</p>
 
           <div className="mt-5 space-y-2">

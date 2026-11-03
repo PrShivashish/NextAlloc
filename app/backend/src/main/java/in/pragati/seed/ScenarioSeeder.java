@@ -14,7 +14,7 @@ import in.pragati.repo.*;
 import in.pragati.service.SkillTaxonomy;
 
 /**
- * Deterministic synthetic dataset generation for all PRAGATI scenarios.
+ * Deterministic synthetic dataset generation for all NextAlloc scenarios.
  * Every scenario is reproducible: same seed, same data, every time.
  * Generation order guarantees referential integrity: candidates and
  * profiles are persisted first, then opportunities, then preferences.

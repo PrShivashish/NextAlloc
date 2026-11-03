@@ -8,7 +8,7 @@ import in.pragati.domain.PolicyPreset;
 import in.pragati.repo.PolicyPresetRepository;
 
 /**
- * PRAGATI demonstration policies (illustrative, not official government
+ * NextAlloc demonstration policies (illustrative, not official government
  * policy). Weights always sum to 100.
  */
 @Configuration
@@ -19,7 +19,7 @@ public class PolicySeeder {
         return args -> {
             if (presets.count() > 0) return;
             presets.save(preset("balanced", "Balanced Allocation Policy",
-                    "PRAGATI default configurable weights that balance skill fit with preference and location.",
+                    "NextAlloc default configurable weights that balance skill fit with preference and location.",
                     "{\"skills\":35,\"qualification\":15,\"interest\":15,\"location\":10,\"preference\":10,\"learning\":10,\"experience\":5}",
                     false, null, true, "v1"));
             presets.save(preset("skills", "Skills-Focused Policy",

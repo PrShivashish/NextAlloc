@@ -99,7 +99,7 @@ export default function AdminScenarios() {
 
       <Callout tone="info" title="About this data">
         Every person, organisation and opportunity here is <b>synthetic and system-generated</b> for demonstration.
-        Names, skills and results are created by the PRAGATI seeder — no real candidate data is used.
+        Names, skills and results are created by the NextAlloc seeder — no real candidate data is used.
       </Callout>
       <div className="flex items-start gap-2 text-[12px] text-navy-400">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />

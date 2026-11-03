@@ -1,4 +1,4 @@
-# PRAGATI — Testing
+﻿# NextAlloc — Testing
 
 Automated tests cover the two places where correctness matters most and is hardest to
 verify by clicking: **the math** (optimizer, determinism, fairness constraints) and
@@ -57,7 +57,7 @@ mvn test
 - Overall score bounded to 0–100.
 - Stronger skill match + aligned interest + rank-1 preference ⇒ strictly higher score.
 - Qualification factor peaks at exact match and stays high when above.
-- **Default weights always sum to 100** — the "PRAGATI default configurable weights"
+- **Default weights always sum to 100** — the "NextAlloc default configurable weights"
   invariant.
 
 Other suites:

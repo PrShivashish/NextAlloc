@@ -6,7 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * PRAGATI default configurable weights (illustrative, not official
+ * NextAlloc default configurable weights (illustrative, not official
  * government weights). Always sum to 100.
  */
 public record Weights(double skills, double qualification, double interest,

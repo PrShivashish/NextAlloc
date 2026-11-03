@@ -1,9 +1,9 @@
 {
-  "name": "pragati-frontend",
+  "name": "nextalloc-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "PRAGATI - AI Smart Allocation for PM Internship Scheme (SIH25033)",
+  "description": "NextAlloc — AI-Powered Internship Allocation Engine (SIH25033)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

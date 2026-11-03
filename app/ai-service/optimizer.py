@@ -1,5 +1,5 @@
 """
-PRAGATI global allocation engine.
+NextAlloc global allocation engine.
 
 Deterministic global optimization (Google OR-Tools CP-SAT) plus a
 deterministic sequential (candidate-by-candidate) baseline. Both consume

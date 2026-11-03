@@ -377,7 +377,7 @@ export default function CandidateProfile() {
 
       {/* 5 · Preferences */}
       <div className="card p-5">
-        <SectionHeader title="Opportunity preferences" sub="Your preferences help PRAGATI understand what you value. They do not override eligibility, capacity, or the global allocation." />
+        <SectionHeader title="Opportunity preferences" sub="Your preferences help NextAlloc understand what you value. They do not override eligibility, capacity, or the global allocation." />
         {prefs.length === 0 ? (
           <div className="py-6 text-center text-[13px] text-navy-400">No preferences yet — search for an opportunity to start ranking.</div>
         ) : (
@@ -430,7 +430,7 @@ export default function CandidateProfile() {
       {/* 6 · Resume & profile autofill */}
       <div className="card p-5">
         <SectionHeader title="Resume & profile autofill"
-          sub="Upload a PDF or Word resume. PRAGATI finds your details and skills — you review every suggestion before anything is saved." />
+          sub="Upload a PDF or Word resume. NextAlloc finds your details and skills — you review every suggestion before anything is saved." />
         <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-navy-200 bg-navy-50/40 py-7 transition hover:border-saffron-300 hover:bg-saffron-50/30">
           <Upload className="h-6 w-6 text-navy-400" />
           <span className="text-[13px] font-semibold text-navy-600">{saving === 'resume' ? 'Uploading…' : 'Choose a file (PDF or DOCX, up to 5 MB)'}</span>

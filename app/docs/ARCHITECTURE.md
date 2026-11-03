@@ -1,4 +1,4 @@
-# PRAGATI — Architecture
+﻿# NextAlloc — Architecture
 
 ## System overview
 
@@ -42,7 +42,7 @@ A naive system processes candidates one by one: each takes the best available se
 gives it back. A globally optimal allocation can require a candidate to *release* a seat so
 the whole population does better.
 
-PRAGATI models the allocation as an integer program:
+NextAlloc models the allocation as an integer program:
 
 - **Variables** — one binary per (candidate, opportunity) pair: assign / not assign.
 - **Hard constraints** — eligibility (qualification, status), one seat per candidate,
@@ -52,7 +52,7 @@ PRAGATI models the allocation as an integer program:
   mandatory skills, overall skill match, qualification fit, sector interest, location
   preference, stated preference rank, and experience. Weights come from the selected policy
   and are labelled *configurable demonstration defaults — not official government weights*.
-- **Solver** — Google OR-Tools **CP-SAT**. When the solver certifies *OPTIMAL*, PRAGATI
+- **Solver** — Google OR-Tools **CP-SAT**. When the solver certifies *OPTIMAL*, NextAlloc
   records that in the run's provenance (you can read “Optimal allocation” on the run detail).
 
 In every run, a **deterministic sequential baseline** (candidates processed in fixed order,

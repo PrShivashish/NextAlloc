@@ -30,7 +30,7 @@ function Guard({ role, children }: { role: 'ADMIN' | 'PROVIDER' | 'CANDIDATE'; c
 
 export default function App() {
   const { me, loading } = useAuth();
-  if (loading) return <div className="flex h-full items-center justify-center"><Spinner label="Starting PRAGATI…" /></div>;
+  if (loading) return <div className="flex h-full items-center justify-center"><Spinner label="Starting NextAlloc…" /></div>;
   return (
     <Routes>
       <Route path="/login" element={me ? <Navigate to={me.role === 'ADMIN' ? '/admin' : me.role === 'PROVIDER' ? '/provider' : '/candidate'} replace /> : <Login />} />

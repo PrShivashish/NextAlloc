@@ -1,4 +1,4 @@
-# PRAGATI — Data Model & Invariants
+﻿# NextAlloc — Data Model & Invariants
 
 Entities are JPA-managed. The demo uses in-memory H2; the `prod` profile points at MySQL 8.
 All timestamps are UTC.

@@ -18,12 +18,12 @@ public class OpenApiConfig {
     public OpenAPI pragatiOpenApi() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("PRAGATI Allocation Platform API")
-                        .description("REST API for PRAGATI — AI Smart Allocation for the PM Internship "
-                                + "Scheme (SIH25033). All data in the demonstration environment is "
+                        .title("NextAlloc Allocation Platform API")
+                        .description("REST API for NextAlloc — AI-Powered Internship Allocation Engine "
+                                + "(SIH25033). All data in the demonstration environment is "
                                 + "synthetic. Sign in at /api/auth/login to obtain a bearer token.")
                         .version("1.0.0")
-                        .contact(new Contact().name("PRAGATI Team")))
+                        .contact(new Contact().name("NextAlloc Team")))
                 .components(new Components().addSecuritySchemes("bearer",
                         new SecurityScheme().type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer").bearerFormat("JWT")))

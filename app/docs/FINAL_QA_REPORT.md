@@ -1,4 +1,4 @@
-# PRAGATI — Final QA Report
+﻿# NextAlloc — Final QA Report
 
 **Date:** 2026-09-11 · **Refreshed 2026-09-13** — the showcase dataset was scaled to its
 final size (Standard Showcase 700 / 49 / 342); §1–§5 were re-measured live against the

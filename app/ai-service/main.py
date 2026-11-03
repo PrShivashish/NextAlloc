@@ -1,5 +1,5 @@
 """
-PRAGATI AI service (FastAPI).
+NextAlloc AI service (FastAPI).
 
 Provides:
   GET  /health        liveness
@@ -22,8 +22,8 @@ import nlp
 import optimizer
 
 app = FastAPI(
-    title="PRAGATI AI Service",
-    description="Skill intelligence and the global allocation engine for PRAGATI (SIH25033).",
+    title="NextAlloc AI Service",
+    description="Skill intelligence and the global allocation engine for NextAlloc (SIH25033).",
     version="1.0.0",
 )
 

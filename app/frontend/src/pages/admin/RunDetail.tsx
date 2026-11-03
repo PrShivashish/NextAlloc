@@ -186,7 +186,7 @@ export default function AdminRunDetail() {
             <button className="btn-dark" disabled={pdfBusy}
               onClick={async () => {
                 setPdfBusy(true);
-                try { await apiDownload(runReportUrl(runId), `PRAGATI-Report-Run${r.number}.pdf`); }
+                try { await apiDownload(runReportUrl(runId), `NextAlloc-Report-Run${r.number}.pdf`); }
                 catch (e) { setErr(errMsg(e)); }
                 setPdfBusy(false);
               }}>
@@ -325,7 +325,7 @@ function CompareTab({ cmp, whyList, onWhy }: { cmp: Comparison | null; whyList: 
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="card border-emerald-200 bg-gradient-to-b from-emerald-50/60 to-white p-5 ring-1 ring-emerald-100">
-          <div className="mb-3 flex items-center gap-2 text-emerald-700"><Trophy className="h-5 w-5" /><span className="font-display text-[15px] font-bold">PRAGATI global allocation</span></div>
+          <div className="mb-3 flex items-center gap-2 text-emerald-700"><Trophy className="h-5 w-5" /><span className="font-display text-[15px] font-bold">NextAlloc global allocation</span></div>
           <MetricRow k="Candidates allocated" v={fmtNum(cmp.globalAllocated)} />
           <MetricRow k="Average suitability" v={fmtPct(cmp.globalSuitability)} />
           <MetricRow k="Preference satisfaction" v={fmtPct(cmp.globalPreferenceSatisfaction)} />

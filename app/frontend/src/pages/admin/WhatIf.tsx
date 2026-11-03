@@ -113,7 +113,7 @@ export default function AdminWhatIf() {
                   </button>
                 ))}
               </div>
-              <p className="mt-2 text-[11.5px] text-navy-400">These are PRAGATI default configurable weights for demonstration — not official government weights.</p>
+              <p className="mt-2 text-[11.5px] text-navy-400">These are NextAlloc default configurable weights for demonstration — not official government weights.</p>
             </div>
             <div>
               <div className="mb-2 flex items-center justify-between">

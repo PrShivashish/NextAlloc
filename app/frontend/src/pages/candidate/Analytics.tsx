@@ -135,7 +135,7 @@ export default function CandidateAnalytics() {
           </optgroup>}
         </select>
         <div className="mt-2 text-[11.5px] text-navy-400">
-          Fit scores use the same eligibility and scoring engine as the global allocation — weights: {fit?.weightsSource ?? 'PRAGATI default configurable weights'}.
+          Fit scores use the same eligibility and scoring engine as the global allocation — weights: {fit?.weightsSource ?? 'NextAlloc default configurable weights'}.
         </div>
       </div>
 

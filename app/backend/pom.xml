@@ -14,8 +14,8 @@
   <groupId>in.pragati</groupId>
   <artifactId>pragati-backend</artifactId>
   <version>1.0.0</version>
-  <name>PRAGATI Backend</name>
-  <description>PRAGATI - AI Smart Allocation for PM Internship Scheme (SIH25033)</description>
+  <name>NextAlloc Backend</name>
+  <description>NextAlloc — AI-Powered Internship Allocation Engine (SIH25033)</description>
 
   <properties>
     <java.version>17</java.version>

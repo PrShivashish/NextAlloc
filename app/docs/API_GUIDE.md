@@ -1,4 +1,4 @@
-# PRAGATI — API Guide
+﻿# NextAlloc — API Guide
 
 Interactive, always-current documentation is served at
 **`http://localhost:8080/swagger-ui.html`** (OpenAPI at `/v3/api-docs`). This guide is a
