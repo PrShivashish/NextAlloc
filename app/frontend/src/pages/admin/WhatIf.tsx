@@ -127,8 +127,10 @@ export default function AdminWhatIf() {
     if (simulationStatus === 'failed' || simulationStatus.includes('failed')) {
       return (
         <div className="card p-5">
-          <Callout tone="warn">
-            Simulation failed. Review the service logs before retrying.
+          <Callout tone="warn" title="Simulation could not be completed">
+            {typeof lastMetrics?.note === 'string'
+              ? lastMetrics.note
+              : 'Simulation failed. Review the service logs before retrying.'}
           </Callout>
         </div>
       );

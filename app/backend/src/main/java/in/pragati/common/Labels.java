@@ -53,7 +53,9 @@ public final class Labels {
     private static final Map<String, String> SOLVER_STATUS = Map.of(
             "OPTIMAL", "Optimal allocation",
             "FEASIBLE", "Feasible allocation",
-            "INFEASIBLE", "Infeasible allocation");
+            "INFEASIBLE", "Infeasible allocation",
+            "UNKNOWN", "Inconclusive — no proven result",
+            "MODEL_INVALID", "Invalid model structure");
 
     private static final Map<String, String> SCENARIO = Map.of(
             "STANDARD_SHOWCASE", "Standard Showcase",

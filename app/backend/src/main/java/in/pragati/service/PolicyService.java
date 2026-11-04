@@ -224,19 +224,34 @@ public class PolicyService {
                     new AiServiceClient.OptPolicy(fullCoverage, groups),
                     new AiServiceClient.OptParams(90, 1, 0L)));
 
-            sim.solverStatus = "INFEASIBLE".equalsIgnoreCase(result.status())
-                    ? SolverStatus.INFEASIBLE
-                    : ("OPTIMAL".equalsIgnoreCase(result.status()) ? SolverStatus.OPTIMAL : SolverStatus.FEASIBLE);
-            if (sim.solverStatus == SolverStatus.INFEASIBLE) {
+            if ("INFEASIBLE".equalsIgnoreCase(result.status())) {
+                sim.solverStatus = SolverStatus.INFEASIBLE;
                 sim.status = RunStatus.INFEASIBLE;
                 sim.metricsJson = json.writeValueAsString(Map.of(
                         "note", "This configuration cannot be satisfied with the current eligible candidates and available opportunity capacity."));
-            } else {
+            } else if ("UNKNOWN".equalsIgnoreCase(result.status())) {
+                sim.solverStatus = SolverStatus.UNKNOWN;
+                sim.status = RunStatus.FAILED;
+                sim.metricsJson = json.writeValueAsString(Map.of(
+                        "note", "The optimizer could not establish a result within the configured search limits."));
+            } else if ("MODEL_INVALID".equalsIgnoreCase(result.status())) {
+                sim.solverStatus = SolverStatus.MODEL_INVALID;
+                sim.status = RunStatus.FAILED;
+                sim.metricsJson = json.writeValueAsString(Map.of(
+                        "note", "The allocation model is structurally invalid. Check input bounds and entity consistency."));
+            } else if ("OPTIMAL".equalsIgnoreCase(result.status()) || "FEASIBLE".equalsIgnoreCase(result.status())) {
+                sim.solverStatus = "OPTIMAL".equalsIgnoreCase(result.status())
+                        ? SolverStatus.OPTIMAL : SolverStatus.FEASIBLE;
                 sim.status = RunStatus.COMPLETED;
                 Map<String, Object> metrics = computeMetrics(base, candidates, opps, prefMap, result);
                 sim.metricsJson = json.writeValueAsString(metrics);
                 sim.affectedCount = ((Number) metrics.getOrDefault("affected", 0)).intValue();
                 sim.stability = ((Number) metrics.getOrDefault("stability", 0.0)).doubleValue();
+            } else {
+                sim.solverStatus = null;
+                sim.status = RunStatus.FAILED;
+                sim.metricsJson = json.writeValueAsString(Map.of(
+                        "note", "Simulation failed due to an unexpected solver status: " + result.status()));
             }
             sim.runtimeMs = System.currentTimeMillis() - t0;
             sims.save(sim);

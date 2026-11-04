@@ -325,6 +325,42 @@ public class AllocationService {
                 return;
             }
 
+            if ("UNKNOWN".equalsIgnoreCase(result.status())) {
+                run.solverStatus = SolverStatus.UNKNOWN;
+                run.status = RunStatus.FAILED;
+                run.errorMessage = "The optimizer could not establish a result within the configured search limits.";
+                st.mark("Finalizing results");
+                finishRun(run, st, t0);
+                audit.logSystem(AuditAction.ALLOCATION_FAILED, "AllocationRun", run.runCode,
+                        "Allocation run #" + run.number + " inconclusive: " + run.errorMessage,
+                        Map.of("solverStatus", "UNKNOWN"));
+                return;
+            }
+
+            if ("MODEL_INVALID".equalsIgnoreCase(result.status())) {
+                run.solverStatus = SolverStatus.MODEL_INVALID;
+                run.status = RunStatus.FAILED;
+                run.errorMessage = "The allocation model is structurally invalid. Check input bounds and entity consistency.";
+                st.mark("Finalizing results");
+                finishRun(run, st, t0);
+                audit.logSystem(AuditAction.ALLOCATION_FAILED, "AllocationRun", run.runCode,
+                        "Allocation run #" + run.number + " invalid model: " + run.errorMessage,
+                        Map.of("solverStatus", "MODEL_INVALID"));
+                return;
+            }
+
+            if (!"OPTIMAL".equalsIgnoreCase(result.status()) && !"FEASIBLE".equalsIgnoreCase(result.status())) {
+                run.solverStatus = null;
+                run.status = RunStatus.FAILED;
+                run.errorMessage = "Unexpected solver response status: " + result.status();
+                st.mark("Finalizing results");
+                finishRun(run, st, t0);
+                audit.logSystem(AuditAction.ALLOCATION_FAILED, "AllocationRun", run.runCode,
+                        "Allocation run #" + run.number + " failed with status: " + result.status(),
+                        Map.of("solverStatus", String.valueOf(result.status())));
+                return;
+            }
+
             run.solverStatus = "OPTIMAL".equalsIgnoreCase(result.status())
                     ? SolverStatus.OPTIMAL : SolverStatus.FEASIBLE;
             run.objective = result.objective();
