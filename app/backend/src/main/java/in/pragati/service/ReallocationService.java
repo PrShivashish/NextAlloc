@@ -9,10 +9,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import in.pragati.common.ApiException;
+import in.pragati.common.Weights;
 import in.pragati.domain.*;
 import in.pragati.domain.enums.AssignmentSource;
 import in.pragati.domain.enums.AuditAction;
@@ -62,6 +62,9 @@ public class ReallocationService {
     }
 
     public AllocationRun start(ReallocationRequest req, AuthUser actor) {
+        if (req == null || req.baseRunId() == null) {
+            throw ApiException.badRequest("The base allocation run ID is required.");
+        }
         AllocationRun base = runs.findById(req.baseRunId())
                 .orElseThrow(() -> ApiException.notFound("The selected allocation run was not found."));
         if (base.status != RunStatus.COMPLETED) {
@@ -74,68 +77,177 @@ public class ReallocationService {
         if (req.changes() == null || req.changes().isEmpty()) {
             throw ApiException.badRequest("Select at least one operational change.");
         }
-        Map<String, Object> overrides = new LinkedHashMap<>();
+
+        Map<Integer, Integer> caps = new LinkedHashMap<>();
+        List<Long> wc = new ArrayList<>();
+        List<Long> wo = new ArrayList<>();
+        Change policyChange = null;
         List<String> changeDescriptions = new ArrayList<>();
+
         for (Change c : req.changes()) {
+            if (c == null || c.type() == null || c.type().isBlank()) {
+                throw ApiException.badRequest("Change type is required.");
+            }
             switch (c.type()) {
                 case "CAPACITY" -> {
+                    if (c.opportunityId() == null) {
+                        throw ApiException.badRequest("Opportunity ID is required for capacity change.");
+                    }
+                    if (caps.containsKey(c.opportunityId().intValue())) {
+                        throw ApiException.badRequest("Duplicate capacity change for opportunity: " + c.opportunityId());
+                    }
+                    if (wo.contains(c.opportunityId())) {
+                        throw ApiException.badRequest("Contradictory changes for opportunity " + c.opportunityId()
+                                + ": cannot both modify capacity and withdraw.");
+                    }
                     Opportunity o = opportunities.findById(c.opportunityId())
                             .orElseThrow(() -> ApiException.badRequest("Unknown opportunity in change."));
                     if (c.newCapacity() == null || c.newCapacity() < 0 || c.newCapacity() > 500) {
                         throw ApiException.badRequest("Capacity must be between 0 and 500.");
                     }
-                    @SuppressWarnings("unchecked")
-                    Map<Integer, Integer> caps = (Map<Integer, Integer>) overrides.computeIfAbsent(
-                            "capacityOverrides", k -> new LinkedHashMap<Integer, Integer>());
                     caps.put(o.id.intValue(), c.newCapacity());
                     changeDescriptions.add(o.title + ": seats changed from " + o.capacity + " to " + c.newCapacity());
                 }
                 case "WITHDRAW_CANDIDATE" -> {
+                    if (c.candidateId() == null) {
+                        throw ApiException.badRequest("Candidate ID is required for candidate withdrawal.");
+                    }
+                    if (wc.contains(c.candidateId())) {
+                        throw ApiException.badRequest("Duplicate withdrawal for candidate: " + c.candidateId());
+                    }
                     CandidateProfile p = profiles.findById(c.candidateId())
                             .orElseThrow(() -> ApiException.badRequest("Unknown candidate in change."));
-                    @SuppressWarnings("unchecked")
-                    List<Long> wc = (List<Long>) overrides.computeIfAbsent(
-                            "withdrawnCandidates", k -> new ArrayList<Long>());
                     wc.add(p.id);
                     changeDescriptions.add(p.fullName + " withdrew from the allocation.");
                 }
                 case "WITHDRAW_OPPORTUNITY" -> {
+                    if (c.opportunityId() == null) {
+                        throw ApiException.badRequest("Opportunity ID is required for opportunity withdrawal.");
+                    }
+                    if (wo.contains(c.opportunityId())) {
+                        throw ApiException.badRequest("Duplicate withdrawal for opportunity: " + c.opportunityId());
+                    }
+                    if (caps.containsKey(c.opportunityId().intValue())) {
+                        throw ApiException.badRequest("Contradictory changes for opportunity " + c.opportunityId()
+                                + ": cannot both modify capacity and withdraw.");
+                    }
                     Opportunity o = opportunities.findById(c.opportunityId())
                             .orElseThrow(() -> ApiException.badRequest("Unknown opportunity in change."));
-                    @SuppressWarnings("unchecked")
-                    List<Long> wo = (List<Long>) overrides.computeIfAbsent(
-                            "withdrawnOpportunities", k -> new ArrayList<Long>());
                     wo.add(o.id);
                     changeDescriptions.add(o.title + " was withdrawn.");
                 }
+                case "POLICY" -> {
+                    if (policyChange != null) {
+                        throw ApiException.badRequest("Only one policy change may be specified per reallocation.");
+                    }
+                    if (c.weights() == null && c.fullCoverage() == null && c.fairnessFloorPct() == null) {
+                        throw ApiException.badRequest("Policy change must specify at least one of: weights, full coverage, or fairness floor.");
+                    }
+                    if (c.weights() != null) {
+                        if (c.weights().isEmpty()) {
+                            throw ApiException.badRequest("Policy weights must not be empty.");
+                        }
+                        double sum = 0.0;
+                        for (String k : Weights.KEYS) {
+                            double v = c.weights().getOrDefault(k, 0.0);
+                            if (v < 0 || v > 100) {
+                                throw ApiException.badRequest("Each weight must be between 0 and 100.");
+                            }
+                            sum += v;
+                        }
+                        if (Math.abs(sum - 100.0) > 0.001) {
+                            throw ApiException.badRequest("Policy weights must total exactly 100%.");
+                        }
+                    }
+                    if (c.fairnessFloorPct() != null && (c.fairnessFloorPct() < 0 || c.fairnessFloorPct() > 95)) {
+                        throw ApiException.badRequest("The fairness floor must be between 0% and 95%.");
+                    }
+                    List<String> descParts = new ArrayList<>();
+                    if (c.weights() != null) {
+                        descParts.add("custom weights applied");
+                    }
+                    if (c.fullCoverage() != null) {
+                        descParts.add("full coverage " + (c.fullCoverage() ? "enabled" : "disabled"));
+                    }
+                    if (c.fairnessFloorPct() != null) {
+                        descParts.add("fairness floor set to " + c.fairnessFloorPct() + "%");
+                    }
+                    changeDescriptions.add("Policy modified: " + String.join(", ", descParts) + ".");
+                    policyChange = c;
+                }
                 default -> throw ApiException.badRequest("Unknown change type: " + c.type());
             }
-            // Policy change rides along with the run's policy (handled by StartRunRequest).
         }
+
         try {
+            Map<String, Object> overrides = new LinkedHashMap<>();
+            if (!caps.isEmpty()) overrides.put("capacityOverrides", caps);
+            if (!wc.isEmpty()) overrides.put("withdrawnCandidates", wc);
+            if (!wo.isEmpty()) overrides.put("withdrawnOpportunities", wo);
+
             String overridesJson = overrides.isEmpty() ? null : json.writeValueAsString(overrides);
             String changesJson = json.writeValueAsString(changeDescriptions);
             AllocationRun parent = base;
-            // Policy: honour an explicit POLICY change, otherwise reuse the parent's policy.
-            AllocationService.StartRunRequest startReq;
-            var policyChange = req.changes().stream()
-                    .filter(c -> "POLICY".equals(c.type())).reduce((a, b) -> b).orElse(null);
+
+            Map<String, Double> effectiveWeights;
+            String effectivePolicyName;
+            String effectivePolicyKey;
+            String effectivePolicyVersion;
+
             if (policyChange != null && policyChange.weights() != null && !policyChange.weights().isEmpty()) {
-                startReq = new AllocationService.StartRunRequest(null, policyChange.weights(),
-                        policyChange.fullCoverage, policyChange.fairnessFloorPct);
-            } else if ("custom".equals(parent.policyKey)) {
-                in.pragati.common.Weights parentW = in.pragati.common.Weights.parse(parent.weightsJson, json);
-                java.util.Map<String, Double> w = new java.util.LinkedHashMap<>();
-                parentW.toMap().forEach((k, v) -> w.put(k, v));
-                startReq = new AllocationService.StartRunRequest(null, w,
-                        parent.fullCoverage ? Boolean.TRUE : null, parent.fairnessFloorPct);
+                effectiveWeights = policyChange.weights();
+                effectivePolicyName = "Custom Reallocation Policy";
+                effectivePolicyKey = "custom";
+                effectivePolicyVersion = "v1";
             } else {
-                startReq = new AllocationService.StartRunRequest(parent.policyKey, null, null,
-                        parent.fairnessFloorPct);
+                Weights parentW = Weights.parse(parent.weightsJson, json);
+                effectiveWeights = parentW.toMap();
+                effectivePolicyName = policyChange != null ? parent.policyName + " (Modified)" : parent.policyName;
+                effectivePolicyKey = parent.policyKey;
+                effectivePolicyVersion = parent.policyVersion;
+            }
+
+            boolean effectiveFullCoverage = policyChange != null && policyChange.fullCoverage() != null
+                    ? policyChange.fullCoverage()
+                    : parent.fullCoverage;
+
+            Integer effectiveFloor = policyChange != null && policyChange.fairnessFloorPct() != null
+                    ? policyChange.fairnessFloorPct()
+                    : parent.fairnessFloorPct;
+
+            AllocationService.StartRunRequest startReq;
+            if (policyChange != null && policyChange.weights() != null && !policyChange.weights().isEmpty()) {
+                startReq = new AllocationService.StartRunRequest(
+                        null, effectiveWeights, effectiveFullCoverage, effectiveFloor);
+            } else if (policyChange == null && !"custom".equals(parent.policyKey)) {
+                // Parent used a standard preset and policy wasn't changed:
+                // Pass parent.policyKey so prepareRun() logs the matching preset name in its audit trail.
+                startReq = new AllocationService.StartRunRequest(
+                        parent.policyKey, null, effectiveFullCoverage, effectiveFloor);
+            } else {
+                startReq = new AllocationService.StartRunRequest(
+                        null, effectiveWeights, effectiveFullCoverage, effectiveFloor);
             }
             AllocationRun run = allocation.prepareRun(startReq, parent.id, overridesJson, actor);
+
+            // Enforce exact policy metadata and full provenance preservation
+            run.policyName = effectivePolicyName;
+            run.policyKey = effectivePolicyKey;
+            run.policyVersion = effectivePolicyVersion;
+            if (policyChange == null || policyChange.weights() == null) {
+                run.weightsJson = parent.weightsJson;
+            }
+            run.fullCoverage = effectiveFullCoverage;
+            run.fairnessFloorPct = effectiveFloor;
             run.changesJson = changesJson;
+
             runs.save(run);
+
+            if (policyChange != null) {
+                audit.log(actor, AuditAction.POLICY_UPDATED, "Policy", run.policyKey,
+                        "Reallocation run #" + run.number + " policy updated: " + changesJson, null);
+            }
+
             allocation.submitForExecution(run);
             return run;
         } catch (ApiException e) {
@@ -145,13 +257,8 @@ public class ReallocationService {
         }
     }
 
-    private Change lastPolicyChange(List<Change> changes) {
-        return changes.stream().filter(c -> "POLICY".equals(c.type())).reduce((a, b) -> b).orElse(null);
-    }
-
     public Page<AllocationRun> reallocationRuns(int page, int size) {
-        Page<AllocationRun> all = runs.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size));
-        return all;
+        return runs.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size));
     }
 
     public DiffDto diff(Long runId) {
@@ -160,8 +267,20 @@ public class ReallocationService {
         if (child.parentRunId == null) {
             throw ApiException.badRequest("This run is not a reallocation, so there is no parent allocation to compare.");
         }
+        if (child.status != RunStatus.COMPLETED) {
+            String msg = switch (child.status) {
+                case QUEUED, RUNNING -> "The reallocation is still in progress. Diff is available once completed.";
+                case INFEASIBLE -> "The reallocation was infeasible. No new assignments were generated.";
+                case FAILED -> "The reallocation failed. Diff is not available for failed runs.";
+                default -> "Diff is available for completed reallocation runs only.";
+            };
+            throw ApiException.badRequest(msg);
+        }
         AllocationRun parent = runs.findById(child.parentRunId)
                 .orElseThrow(() -> ApiException.notFound("Parent allocation run not found."));
+        if (parent.status != RunStatus.COMPLETED) {
+            throw ApiException.badRequest("Parent allocation run is not completed.");
+        }
         List<Assignment> pList = assignments.findByRunIdAndSource(parent.id, AssignmentSource.GLOBAL);
         List<Assignment> cList = assignments.findByRunIdAndSource(child.id, AssignmentSource.GLOBAL);
         Map<Long, Assignment> p = new java.util.HashMap<>();
