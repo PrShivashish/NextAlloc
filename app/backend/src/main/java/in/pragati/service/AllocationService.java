@@ -378,23 +378,42 @@ public class AllocationService {
         runs.save(run);
     }
 
+    /**
+     * Returns a sorted list of integer candidate IDs representing the complete
+     * effective cohort for this run. Every active, non-withdrawn candidate in
+     * {@code candidates} is included — including applicants with zero eligible
+     * pairs — so that the Python optimizer can correctly enforce Full Coverage
+     * constraints and report INFEASIBLE when any cohort member cannot be placed.
+     *
+     * <p>Package-private to allow direct unit testing at this boundary without
+     * requiring a Spring context or database.
+     */
+    static List<Integer> toCandidateIds(List<CandidateProfile> candidates) {
+        return candidates.stream()
+                .map(p -> p.id.intValue())
+                .sorted()
+                .toList();
+    }
+
     private AiServiceClient.OptimizeRequest buildOptimizerRequest(AllocationRun run,
                                                                   List<CandidateProfile> candidates,
                                                                   List<Opportunity> opps,
                                                                   List<EligiblePair> pairs,
                                                                   Map<Long, Integer> eligiblePerOpp,
                                                                   Map<Long, Integer> capacityOverrides) {
-        Set<Integer> candIds = new HashSet<>();
         List<AiServiceClient.OptPair> pairList = new ArrayList<>(pairs.size());
         for (EligiblePair p : pairs) {
             int c = p.candidateId().intValue();
             int i = p.opportunityId().intValue();
-            candIds.add(c);
             pairList.add(new AiServiceClient.OptPair(c, i,
                     (int) Math.round(p.score().overall() * 100),
                     p.preferenceRank() != null ? 1 : 0));
         }
-        List<Integer> candidateList = candIds.stream().sorted().toList();
+        // FIX (Patch 1 / DEF-001): derive the candidate list from the full
+        // effective cohort, not from eligible pairs.  Candidates with zero
+        // eligible pairs must still appear so that Full Coverage correctly
+        // reports INFEASIBLE rather than silently excluding them.
+        List<Integer> candidateList = toCandidateIds(candidates);
         List<AiServiceClient.OptOpp> oppList = opps.stream()
                 .map(o -> new AiServiceClient.OptOpp(o.id.intValue(),
                         capacityOverrides.getOrDefault(o.id, o.capacity)))

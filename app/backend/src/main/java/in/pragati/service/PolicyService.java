@@ -143,6 +143,22 @@ public class PolicyService {
 
     private void runActiveOff() { simActive.set(false); }
 
+    /**
+     * Returns a sorted list of integer candidate IDs representing the complete
+     * active population for this simulation. Mirrors
+     * {@link AllocationService#toCandidateIds} so that simulation results are
+     * directly comparable to allocation results.
+     *
+     * <p>Package-private to allow direct unit testing at this boundary without
+     * requiring a Spring context or database.
+     */
+    static List<Integer> toCandidateIds(List<CandidateProfile> candidates) {
+        return candidates.stream()
+                .map(p -> p.id.intValue())
+                .sorted()
+                .toList();
+    }
+
     private void runSimulation(Long simId, AllocationRun base, Weights w,
                                boolean fullCoverage, Integer floor, AuthUser actor) {
         long t0 = System.currentTimeMillis();
@@ -183,10 +199,8 @@ public class PolicyService {
                 }
             }
 
-            Set<Integer> candListSet = new HashSet<>();
             List<AiServiceClient.OptPair> pairList = new ArrayList<>();
             for (EligiblePair p : pairs) {
-                candListSet.add(p.candidateId().intValue());
                 pairList.add(new AiServiceClient.OptPair(p.candidateId().intValue(),
                         p.opportunityId().intValue(), (int) Math.round(p.score().overall() * 100),
                         p.preferenceRank() != null ? 1 : 0));
@@ -201,8 +215,12 @@ public class PolicyService {
                     if (!members.isEmpty()) groups.add(new AiServiceClient.OptGroup(lt.name(), members, floor));
                 }
             }
+            // FIX (Patch 1 / DEF-001): derive the candidate list from the full
+            // active population, not from eligible pairs. Candidates with zero
+            // eligible pairs must appear so Full Coverage can correctly report
+            // INFEASIBLE instead of silently excluding them from the simulation.
             AiServiceClient.OptimizeResult result = ai.optimize(new AiServiceClient.OptimizeRequest(
-                    candListSet.stream().sorted().toList(), oppList, pairList,
+                    toCandidateIds(candidates), oppList, pairList,
                     new AiServiceClient.OptPolicy(fullCoverage, groups),
                     new AiServiceClient.OptParams(90, 1, 0L)));
 
