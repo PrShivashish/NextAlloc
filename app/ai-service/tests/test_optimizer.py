@@ -503,3 +503,49 @@ def test_validate_assignments_rejects_capacity_violation():
     valid, reason = optimizer.validate_assignments(assignments, candidates, capacities, pairs_set)
     assert not valid
     assert "capacity exceeded" in reason
+
+
+def test_v2_rural_denominator_excludes_candidates_without_eligible_pairs():
+    """V2 policy denominator excludes rural candidates with zero eligible opportunities.
+
+    Candidate 1: Rural, has eligible pair with Opp 10 (cap 1).
+    Candidate 2: Rural, has NO eligible pairs.
+    Candidate 3: Urban, has eligible pair with Opp 10.
+    Fairness floor: 100% on RURAL group [1, 2].
+
+    Because Candidate 2 has 0 eligible pairs, |R_eligible| = 1 (only candidate 1).
+    Floor requirement is ceil(100% * 1) = 1 placement of candidate 1.
+    This problem is FEASIBLE (candidate 1 allocated to opp 10).
+    If candidate 2 were erroneously included in the denominator, required would be
+    ceil(100% * 2) = 2, which would be falsely INFEASIBLE.
+    """
+    candidates = [1, 2, 3]
+    pairs = [(1, 10, 80, 0), (3, 10, 95, 0)]  # Candidate 2 has no pairs
+    caps = {10: 1}
+    groups = [{"key": "RURAL", "candidates": [1, 2], "floorPct": 100}]
+
+    res = _run(pairs, caps, groups=groups, candidates=candidates)
+    assert res["status"] in ("OPTIMAL", "FEASIBLE")
+    assert len(res["global"]) == 1
+    assert res["global"][0]["c"] == 1
+    assert res["global"][0]["i"] == 10
+
+    # Verify against independent oracle
+    oracle_k, oracle_score, oracle_sol = independent_oracle(
+        candidates, caps, pairs, groups=groups
+    )
+    assert oracle_k == 1
+    assert {(a["c"], a["i"]) for a in oracle_sol} == {(1, 10)}
+
+
+def test_v2_rural_empty_eligible_cohort_requires_zero_placements():
+    """When no rural candidates have eligible pairs, required placements is 0."""
+    candidates = [1, 2]
+    pairs = [(2, 10, 90, 0)]  # Candidate 1 (rural) has no pairs; candidate 2 (urban) has 1 pair
+    caps = {10: 1}
+    groups = [{"key": "RURAL", "candidates": [1], "floorPct": 50}]
+
+    res = _run(pairs, caps, groups=groups, candidates=candidates)
+    assert res["status"] in ("OPTIMAL", "FEASIBLE")
+    assert len(res["global"]) == 1
+    assert res["global"][0]["c"] == 2

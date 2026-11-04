@@ -18,6 +18,8 @@ export default function AdminWhatIf() {
   const [weights, setWeights] = useState<Record<string, number>>({ skills: 35, qualification: 15, interest: 15, location: 10, preference: 10, learning: 10, experience: 5 });
   const [fullCoverage, setFullCoverage] = useState(false);
   const [floor, setFloor] = useState<number>(0);
+  const [policyVersion, setPolicyVersion] = useState<string>('v2');
+  const [activePresetKey, setActivePresetKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [sims, setSims] = useState<SimulationRow[]>([]);
@@ -31,6 +33,14 @@ export default function AdminWhatIf() {
           apiGet<any>('/admin/simulations', { page: 0, size: 8 }),
         ]);
         setPresets(p);
+        const defaultPreset = p.find(x => x.key === 'balanced_v2') ?? p.find(x => x.isDefault) ?? p[0];
+        if (defaultPreset) {
+          setActivePresetKey(defaultPreset.key);
+          setPolicyVersion(defaultPreset.version || 'v2');
+          try { setWeights(JSON.parse(defaultPreset.weightsJson)); } catch { }
+          setFullCoverage(!!defaultPreset.fullCoverage);
+          setFloor(defaultPreset.fairnessFloorPct ?? 0);
+        }
         const completed = (r.content ?? []).filter((x: any) => x.status === 'Completed' && !x.reallocation);
         setRuns(completed);
         if (completed.length > 0) setBaseRunId(completed[0].id);
@@ -43,9 +53,11 @@ export default function AdminWhatIf() {
   const loadPreset = (key: string) => {
     const p = presets.find(x => x.key === key);
     if (!p) return;
+    setActivePresetKey(p.key);
     try { setWeights(JSON.parse(p.weightsJson)); } catch { }
     setFullCoverage(!!p.fullCoverage);
     setFloor(p.fairnessFloorPct ?? 0);
+    setPolicyVersion(p.version || 'v2');
   };
 
   const refreshSims = async () => {
@@ -58,7 +70,13 @@ export default function AdminWhatIf() {
     if (baseRunId == null) { setErr('Please select the allocation run to compare against.'); return; }
     setBusy(true); setErr('');
     try {
-      await apiPost('/admin/simulations', { baseRunId, weights, fullCoverage, fairnessFloorPct: floor || null });
+      await apiPost('/admin/simulations', {
+        baseRunId,
+        weights,
+        fullCoverage,
+        fairnessFloorPct: floor || null,
+        policyVersion,
+      });
       // The simulation runs asynchronously — poll until it reaches a final state.
       for (let i = 0; i < 50; i++) {
         await new Promise(res => setTimeout(res, 1200));
@@ -138,7 +156,7 @@ export default function AdminWhatIf() {
     if ((simulationStatus === 'completed' || simulationStatus.includes('completed')) && hasComparisonMetrics) {
       return (
         <div className="card p-5">
-          <SectionHeader title="Latest simulation" sub={`${lastSim?.policyName} vs current policy · ${fmtMs(lastSim.runtimeMs)}`}
+          <SectionHeader title="Latest simulation" sub={`${lastSim?.policyName} (${lastMetrics?.policyVersion ?? 'v1'}) vs current policy · ${fmtMs(lastSim.runtimeMs)}`}
             right={<Badge tone={statusTone(lastSim?.status ?? '')} dot>{lastSim?.status}</Badge>} />
           <div className="space-y-1.5">
             <SimRow k="Candidates allocated" a={lastMetrics.current.allocated} b={lastMetrics.scenario.allocated} />
@@ -194,11 +212,18 @@ export default function AdminWhatIf() {
             <div>
               <label className="label">Start from a demonstration policy</label>
               <div className="flex flex-wrap gap-2">
-                {presets.map(p => (
-                  <button key={p.key} className={`btn btn-sm ${p.isDefault ? 'bg-ink text-white' : 'border border-navy-900/10 bg-white text-navy-700 hover:bg-navy-50'}`} onClick={() => loadPreset(p.key)}>
-                    {p.name}
-                  </button>
-                ))}
+                {presets.map(p => {
+                  const isCurrent = activePresetKey === p.key;
+                  return (
+                    <button
+                      key={p.key}
+                      className={`btn btn-sm ${isCurrent ? 'bg-ink text-white' : 'border border-navy-900/10 bg-white text-navy-700 hover:bg-navy-50'}`}
+                      onClick={() => loadPreset(p.key)}
+                    >
+                      {p.name}
+                    </button>
+                  );
+                })}
               </div>
               <p className="mt-2 text-[11.5px] text-navy-400">These are NextAlloc default configurable weights for demonstration — not official government weights.</p>
             </div>
@@ -214,7 +239,7 @@ export default function AdminWhatIf() {
                       <span>{label}</span><span className="text-navy-400">{weights[k]}%</span>
                     </div>
                     <input type="range" min={0} max={60} value={weights[k]}
-                      onChange={e => setWeights(w => ({ ...w, [k]: Number(e.target.value) }))}
+                      onChange={e => { setWeights(w => ({ ...w, [k]: Number(e.target.value) })); setActivePresetKey(null); }}
                       className="w-full accent-saffron-500" />
                   </div>
                 ))}
@@ -226,21 +251,40 @@ export default function AdminWhatIf() {
                   <div className="text-[13px] font-bold text-ink">Allocate every candidate</div>
                   <div className="text-[11.5px] text-navy-400">A hard rule: nobody is left unallocated.</div>
                 </div>
-                <input type="checkbox" className="h-4.5 w-4.5 h-[18px] w-[18px] accent-saffron-500" checked={fullCoverage} onChange={e => setFullCoverage(e.target.checked)} />
+                <input type="checkbox" className="h-4.5 w-4.5 h-[18px] w-[18px] accent-saffron-500" checked={fullCoverage} onChange={e => { setFullCoverage(e.target.checked); setActivePresetKey(null); }} />
               </label>
               <div>
                 <div className="mb-1 flex items-center justify-between text-[12px] font-semibold text-navy-600">
-                  <span>Minimum share for rural candidates</span><span className="text-navy-400">{floor}%</span>
+                  <span>
+                    {policyVersion === 'v1'
+                      ? 'Minimum eligible placement rate for each location group (v1)'
+                      : 'Minimum placement rate among eligible rural candidates (v2)'}
+                  </span>
+                  <span className="text-navy-400">{floor}%</span>
                 </div>
-                <input type="range" min={0} max={95} value={floor} onChange={e => setFloor(Number(e.target.value))} className="w-full accent-saffron-500" />
-                <p className="mt-1 text-[11px] text-navy-400">A hard fairness floor enforced by the optimizer.</p>
+                <input type="range" min={0} max={95} value={floor} onChange={e => { setFloor(Number(e.target.value)); setActivePresetKey(null); }} className="w-full accent-saffron-500" />
+                <p className="mt-1 text-[11px] text-navy-400">
+                  {policyVersion === 'v1'
+                    ? `Legacy policy (v1): requires placing at least ${floor}% of eligible applicants separately within each location group (Rural, Urban, Semi-urban). Applies to eligible group members, not total seat share.`
+                    : `Demonstration policy (v2): requires placing at least ${floor}% of rural applicants who have at least one eligible opportunity. Applies to eligible rural applicants, not total seat share.`}
+                </p>
               </div>
             </div>
             <div className="flex gap-2.5">
               <button className="btn-primary" onClick={runSim} disabled={busy || baseRunId == null || total !== 100}>
                 <Play className="h-4 w-4" /> {busy ? 'Simulating…' : 'Run what-if simulation'}
               </button>
-              <button className="btn-ghost" onClick={() => loadPreset('balanced')}><RotateCcw className="h-4 w-4" /> Reset to defaults</button>
+              <button
+                className="btn-ghost"
+                onClick={() => {
+                  const effectiveDefaultKey = presets.find(p => p.key === 'balanced_v2')?.key
+                    ?? presets.find(p => p.isDefault)?.key
+                    ?? 'balanced_v2';
+                  loadPreset(effectiveDefaultKey);
+                }}
+              >
+                <RotateCcw className="h-4 w-4" /> Reset to defaults
+              </button>
             </div>
             {total !== 100 && <div className="text-[12px] font-medium text-red-600">Weights must total exactly 100% — currently {total}%.</div>}
           </div>

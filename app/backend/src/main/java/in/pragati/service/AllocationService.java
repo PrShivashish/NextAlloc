@@ -85,7 +85,36 @@ public class AllocationService {
     }
 
     public record StartRunRequest(String policyKey, Map<String, Double> weights,
-                                  Boolean fullCoverage, Integer fairnessFloorPct) { }
+                                  Boolean fullCoverage, Integer fairnessFloorPct,
+                                  String policyVersion) {
+        public StartRunRequest(String policyKey, Map<String, Double> weights,
+                               Boolean fullCoverage, Integer fairnessFloorPct) {
+            this(policyKey, weights, fullCoverage, fairnessFloorPct, null);
+        }
+    }
+
+    public static String validatePolicyVersion(String version) {
+        if (version == null || version.isBlank()) {
+            return "v2";
+        }
+        String trimmed = version.trim().toLowerCase();
+        if ("v1".equals(trimmed) || "v2".equals(trimmed)) {
+            return trimmed;
+        }
+        throw ApiException.badRequest("Unsupported policy version: '" + version + "'. Supported versions are 'v1' and 'v2'.");
+    }
+
+    public static String resolvePolicyVersion(AllocationRun run) {
+        if (run == null) {
+            return "v1";
+        }
+        if (run.policyVersion != null && !run.policyVersion.isBlank()) {
+            return validatePolicyVersion(run.policyVersion);
+        }
+        // Missing policyVersion indicates historical legacy provenance (pre-Patch 4A).
+        // Must resolve to v1 and never silently default to v2.
+        return "v1";
+    }
 
     // ------------------------------------------------------------------
     // Public API
@@ -129,28 +158,47 @@ public class AllocationService {
 
         if (req != null && req.policyKey() != null && !req.policyKey().isBlank()) {
             preset = presets.findByKey(req.policyKey())
-                    .orElseThrow(() -> ApiException.badRequest("Unknown policy selection."));
+                    .orElseThrow(() -> ApiException.badRequest("Unknown policy selection: " + req.policyKey()));
             w = Weights.parse(preset.weightsJson, json);
             fullCoverage = preset.fullCoverage;
             floor = req.fairnessFloorPct() != null ? req.fairnessFloorPct() : preset.fairnessFloorPct;
             policyName = preset.name;
             policyKey = preset.key;
-            policyVersion = preset.version;
+            if (req.policyVersion() != null && !req.policyVersion().isBlank()) {
+                policyVersion = validatePolicyVersion(req.policyVersion());
+            } else if (preset.version != null && !preset.version.isBlank()) {
+                policyVersion = validatePolicyVersion(preset.version);
+            } else {
+                policyVersion = "v2";
+            }
         } else if (req != null && req.weights() != null && !req.weights().isEmpty()) {
             w = toWeights(req.weights());
             fullCoverage = Boolean.TRUE.equals(req.fullCoverage());
             floor = req.fairnessFloorPct();
             policyName = "Custom Policy";
             policyKey = "custom";
-            policyVersion = "v1";
+            if (req.policyVersion() != null && !req.policyVersion().isBlank()) {
+                policyVersion = validatePolicyVersion(req.policyVersion());
+            } else {
+                policyVersion = "v2";
+            }
         } else {
-            preset = presets.findByKey("balanced").orElse(null);
+            preset = presets.findByKey("balanced_v2")
+                    .or(() -> presets.findAll().stream().filter(p -> p.isDefault).findFirst())
+                    .or(() -> presets.findByKey("balanced"))
+                    .orElse(null);
             w = preset != null ? Weights.parse(preset.weightsJson, json) : Weights.defaultBalanced();
             fullCoverage = preset != null && preset.fullCoverage;
             floor = preset != null ? preset.fairnessFloorPct : null;
             policyName = preset != null ? preset.name : "Balanced Allocation Policy";
             policyKey = preset != null ? preset.key : "balanced";
-            policyVersion = preset != null ? preset.version : "v1";
+            if (req != null && req.policyVersion() != null && !req.policyVersion().isBlank()) {
+                policyVersion = validatePolicyVersion(req.policyVersion());
+            } else if (preset != null && preset.version != null) {
+                policyVersion = validatePolicyVersion(preset.version);
+            } else {
+                policyVersion = "v2";
+            }
         }
         if (floor != null && (floor < 0 || floor > 95)) {
             throw ApiException.badRequest("The fairness floor must be between 0% and 95%.");
@@ -456,12 +504,25 @@ public class AllocationService {
                 .toList();
         List<AiServiceClient.OptGroup> groups = new ArrayList<>();
         if (run.fairnessFloorPct != null && run.fairnessFloorPct > 0) {
-            for (LocationType lt : LocationType.values()) {
-                List<Integer> members = candidates.stream()
-                        .filter(p -> p.locationType == lt)
+            String effectiveVersion = resolvePolicyVersion(run);
+            boolean isV2 = "v2".equals(effectiveVersion);
+            if (isV2) {
+                // v2 demonstration policy: rural applicants only
+                List<Integer> rural = candidates.stream()
+                        .filter(p -> p.locationType == LocationType.RURAL)
                         .map(p -> p.id.intValue()).sorted().toList();
-                if (!members.isEmpty()) {
-                    groups.add(new AiServiceClient.OptGroup(lt.name(), members, run.fairnessFloorPct));
+                if (!rural.isEmpty()) {
+                    groups.add(new AiServiceClient.OptGroup(LocationType.RURAL.name(), rural, run.fairnessFloorPct));
+                }
+            } else {
+                // Legacy v1 policy: all location types constrained at same floor
+                for (LocationType lt : LocationType.values()) {
+                    List<Integer> members = candidates.stream()
+                            .filter(p -> p.locationType == lt)
+                            .map(p -> p.id.intValue()).sorted().toList();
+                    if (!members.isEmpty()) {
+                        groups.add(new AiServiceClient.OptGroup(lt.name(), members, run.fairnessFloorPct));
+                    }
                 }
             }
         }

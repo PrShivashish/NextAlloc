@@ -32,7 +32,14 @@ public class ReallocationService {
 
     public record Change(String type, Long opportunityId, Long candidateId,
                          Integer newCapacity, Map<String, Double> weights,
-                         Boolean fullCoverage, Integer fairnessFloorPct) { }
+                         Boolean fullCoverage, Integer fairnessFloorPct,
+                         String policyVersion) {
+        public Change(String type, Long opportunityId, Long candidateId,
+                      Integer newCapacity, Map<String, Double> weights,
+                      Boolean fullCoverage, Integer fairnessFloorPct) {
+            this(type, opportunityId, candidateId, newCapacity, weights, fullCoverage, fairnessFloorPct, null);
+        }
+    }
 
     public record ReallocationRequest(Long baseRunId, List<Change> changes) { }
 
@@ -140,8 +147,8 @@ public class ReallocationService {
                     if (policyChange != null) {
                         throw ApiException.badRequest("Only one policy change may be specified per reallocation.");
                     }
-                    if (c.weights() == null && c.fullCoverage() == null && c.fairnessFloorPct() == null) {
-                        throw ApiException.badRequest("Policy change must specify at least one of: weights, full coverage, or fairness floor.");
+                    if (c.weights() == null && c.fullCoverage() == null && c.fairnessFloorPct() == null && c.policyVersion() == null) {
+                        throw ApiException.badRequest("Policy change must specify at least one of: weights, full coverage, fairness floor, or policy version.");
                     }
                     if (c.weights() != null) {
                         if (c.weights().isEmpty()) {
@@ -172,6 +179,9 @@ public class ReallocationService {
                     if (c.fairnessFloorPct() != null) {
                         descParts.add("fairness floor set to " + c.fairnessFloorPct() + "%");
                     }
+                    if (c.policyVersion() != null && !c.policyVersion().isBlank()) {
+                        descParts.add("policy version set to " + c.policyVersion());
+                    }
                     changeDescriptions.add("Policy modified: " + String.join(", ", descParts) + ".");
                     policyChange = c;
                 }
@@ -194,17 +204,21 @@ public class ReallocationService {
             String effectivePolicyKey;
             String effectivePolicyVersion;
 
+            if (policyChange != null && policyChange.policyVersion() != null && !policyChange.policyVersion().isBlank()) {
+                effectivePolicyVersion = AllocationService.validatePolicyVersion(policyChange.policyVersion());
+            } else {
+                effectivePolicyVersion = AllocationService.resolvePolicyVersion(parent);
+            }
+
             if (policyChange != null && policyChange.weights() != null && !policyChange.weights().isEmpty()) {
                 effectiveWeights = policyChange.weights();
                 effectivePolicyName = "Custom Reallocation Policy";
                 effectivePolicyKey = "custom";
-                effectivePolicyVersion = "v1";
             } else {
                 Weights parentW = Weights.parse(parent.weightsJson, json);
                 effectiveWeights = parentW.toMap();
                 effectivePolicyName = policyChange != null ? parent.policyName + " (Modified)" : parent.policyName;
                 effectivePolicyKey = parent.policyKey;
-                effectivePolicyVersion = parent.policyVersion;
             }
 
             boolean effectiveFullCoverage = policyChange != null && policyChange.fullCoverage() != null
@@ -218,15 +232,15 @@ public class ReallocationService {
             AllocationService.StartRunRequest startReq;
             if (policyChange != null && policyChange.weights() != null && !policyChange.weights().isEmpty()) {
                 startReq = new AllocationService.StartRunRequest(
-                        null, effectiveWeights, effectiveFullCoverage, effectiveFloor);
+                        null, effectiveWeights, effectiveFullCoverage, effectiveFloor, effectivePolicyVersion);
             } else if (policyChange == null && !"custom".equals(parent.policyKey)) {
                 // Parent used a standard preset and policy wasn't changed:
                 // Pass parent.policyKey so prepareRun() logs the matching preset name in its audit trail.
                 startReq = new AllocationService.StartRunRequest(
-                        parent.policyKey, null, effectiveFullCoverage, effectiveFloor);
+                        parent.policyKey, null, effectiveFullCoverage, effectiveFloor, effectivePolicyVersion);
             } else {
                 startReq = new AllocationService.StartRunRequest(
-                        null, effectiveWeights, effectiveFullCoverage, effectiveFloor);
+                        null, effectiveWeights, effectiveFullCoverage, effectiveFloor, effectivePolicyVersion);
             }
             AllocationRun run = allocation.prepareRun(startReq, parent.id, overridesJson, actor);
 

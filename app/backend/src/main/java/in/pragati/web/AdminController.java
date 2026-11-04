@@ -66,7 +66,13 @@ public class AdminController {
     public record AuditRow(Long id, String at, String action, String actor, String summary,
                            Map<String, Object> details) { }
     public record StartRunRequest(String policyKey, Map<String, Double> weights,
-                                  Boolean fullCoverage, Integer fairnessFloorPct) { }
+                                  Boolean fullCoverage, Integer fairnessFloorPct,
+                                  String policyVersion) {
+        public StartRunRequest(String policyKey, Map<String, Double> weights,
+                               Boolean fullCoverage, Integer fairnessFloorPct) {
+            this(policyKey, weights, fullCoverage, fairnessFloorPct, null);
+        }
+    }
 
     // ------------------------------------------------------------------
     // Controller
@@ -203,7 +209,8 @@ public class AdminController {
                 new AllocationService.StartRunRequest(req == null ? null : req.policyKey(),
                         req == null ? null : req.weights(),
                         req == null ? null : req.fullCoverage(),
-                        req == null ? null : req.fairnessFloorPct()), me);
+                        req == null ? null : req.fairnessFloorPct(),
+                        req == null ? null : req.policyVersion()), me);
         DatasetSnapshot current = snapshots.findTopByOrderByIdDesc().orElse(null);
         return ResponseEntity.accepted().body(toRunSummary(run, current));
     }

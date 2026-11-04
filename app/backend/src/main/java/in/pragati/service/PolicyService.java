@@ -37,7 +37,13 @@ public class PolicyService {
     private static final Logger log = LoggerFactory.getLogger(PolicyService.class);
 
     public record SimulateRequest(Long baseRunId, Map<String, Double> weights,
-                                  Boolean fullCoverage, Integer fairnessFloorPct) { }
+                                  Boolean fullCoverage, Integer fairnessFloorPct,
+                                  String policyVersion) {
+        public SimulateRequest(Long baseRunId, Map<String, Double> weights,
+                               Boolean fullCoverage, Integer fairnessFloorPct) {
+            this(baseRunId, weights, fullCoverage, fairnessFloorPct, null);
+        }
+    }
 
     private final AllocationRunRepository runs;
     private final DatasetSnapshotRepository snapshots;
@@ -129,6 +135,14 @@ public class PolicyService {
             throw ApiException.badRequest("The fairness floor must be between 0% and 95%.");
         }
 
+        String baseVersion = AllocationService.resolvePolicyVersion(base);
+        String effectivePolicyVersion;
+        if (req.policyVersion() != null && !req.policyVersion().isBlank()) {
+            effectivePolicyVersion = AllocationService.validatePolicyVersion(req.policyVersion());
+        } else {
+            effectivePolicyVersion = baseVersion;
+        }
+
         SimulationRun sim = new SimulationRun();
         sim.baseRunId = base.id;
         sim.policyName = policyName;
@@ -137,7 +151,7 @@ public class PolicyService {
         sim.fairnessFloorPct = floor;
         sim.status = RunStatus.RUNNING;
         SimulationRun saved = sims.save(sim);
-        executor.submit(() -> runSimulation(saved.id, base, w, fullCoverage, floor, actor));
+        executor.submit(() -> runSimulation(saved.id, base, w, fullCoverage, floor, effectivePolicyVersion, actor));
         return saved;
     }
 
@@ -161,9 +175,17 @@ public class PolicyService {
 
     private void runSimulation(Long simId, AllocationRun base, Weights w,
                                boolean fullCoverage, Integer floor, AuthUser actor) {
+        runSimulation(simId, base, w, fullCoverage, floor, AllocationService.resolvePolicyVersion(base), actor);
+    }
+
+    private void runSimulation(Long simId, AllocationRun base, Weights w,
+                               boolean fullCoverage, Integer floor, String policyVersion, AuthUser actor) {
         long t0 = System.currentTimeMillis();
         SimulationRun sim = sims.findById(simId).orElseThrow();
         try {
+            String effectiveVersion = policyVersion != null && !policyVersion.isBlank()
+                    ? AllocationService.validatePolicyVersion(policyVersion)
+                    : AllocationService.resolvePolicyVersion(base);
             List<CandidateProfile> candidates = profiles.findAllByCandidateState(CandidateState.ACTIVE);
             List<Long> candIds = candidates.stream().map(p -> p.id).toList();
             Map<Long, Set<String>> skillsMap = new HashMap<>();
@@ -209,10 +231,17 @@ public class PolicyService {
                     .map(o -> new AiServiceClient.OptOpp(o.id.intValue(), o.capacity)).toList();
             List<AiServiceClient.OptGroup> groups = new ArrayList<>();
             if (floor != null && floor > 0) {
-                for (LocationType lt : LocationType.values()) {
-                    List<Integer> members = candidates.stream().filter(p -> p.locationType == lt)
+                boolean isV2 = "v2".equals(effectiveVersion);
+                if (isV2) {
+                    List<Integer> rural = candidates.stream().filter(p -> p.locationType == LocationType.RURAL)
                             .map(p -> p.id.intValue()).sorted().toList();
-                    if (!members.isEmpty()) groups.add(new AiServiceClient.OptGroup(lt.name(), members, floor));
+                    if (!rural.isEmpty()) groups.add(new AiServiceClient.OptGroup(LocationType.RURAL.name(), rural, floor));
+                } else {
+                    for (LocationType lt : LocationType.values()) {
+                        List<Integer> members = candidates.stream().filter(p -> p.locationType == lt)
+                                .map(p -> p.id.intValue()).sorted().toList();
+                        if (!members.isEmpty()) groups.add(new AiServiceClient.OptGroup(lt.name(), members, floor));
+                    }
                 }
             }
             // FIX (Patch 1 / DEF-001): derive the candidate list from the full
@@ -243,7 +272,7 @@ public class PolicyService {
                 sim.solverStatus = "OPTIMAL".equalsIgnoreCase(result.status())
                         ? SolverStatus.OPTIMAL : SolverStatus.FEASIBLE;
                 sim.status = RunStatus.COMPLETED;
-                Map<String, Object> metrics = computeMetrics(base, candidates, opps, prefMap, result);
+                Map<String, Object> metrics = computeMetrics(base, candidates, opps, prefMap, result, effectiveVersion);
                 sim.metricsJson = json.writeValueAsString(metrics);
                 sim.affectedCount = ((Number) metrics.getOrDefault("affected", 0)).intValue();
                 sim.stability = ((Number) metrics.getOrDefault("stability", 0.0)).doubleValue();
@@ -271,7 +300,8 @@ public class PolicyService {
     private Map<String, Object> computeMetrics(AllocationRun base, List<CandidateProfile> candidates,
                                                List<Opportunity> opps,
                                                Map<Long, Map<Long, Integer>> prefMap,
-                                               AiServiceClient.OptimizeResult result) {
+                                               AiServiceClient.OptimizeResult result,
+                                               String policyVersion) {
         List<Assignment> baseGlobal = assignments.findByRunIdAndSource(base.id, AssignmentSource.GLOBAL);
         Map<Long, Assignment> baseByCand = new HashMap<>();
         for (Assignment a : baseGlobal) baseByCand.put(a.candidateId, a);
@@ -316,6 +346,7 @@ public class PolicyService {
         out.put("affected", affected);
         out.put("stability", baseGlobal.isEmpty() ? 100.0 : r1((double) unchanged / baseGlobal.size() * 100));
         out.put("objective", result.objective());
+        out.put("policyVersion", policyVersion);
         return out;
     }
 
