@@ -18,9 +18,12 @@ import org.springframework.web.multipart.MultipartFile;
 import in.pragati.domain.enums.Sector;
 import in.pragati.domain.enums.SignatoryRole;
 import in.pragati.security.AuthUser;
+import in.pragati.service.CandidateAcademicService;
 import in.pragati.service.CandidateService;
 import in.pragati.service.EvidenceService;
 import in.pragati.service.ReadinessService;
+import in.pragati.web.dto.CandidateAcademicDto;
+import in.pragati.web.dto.CandidateAcademicInput;
 import in.pragati.web.dto.NocEvidenceDto;
 import in.pragati.web.dto.NocSubmissionInput;
 
@@ -35,10 +38,14 @@ public class CandidateController {
 
     private final CandidateService candidateService;
     private final EvidenceService evidenceService;
+    private final CandidateAcademicService academicService;
 
-    public CandidateController(CandidateService candidateService, EvidenceService evidenceService) {
+    public CandidateController(CandidateService candidateService,
+                               EvidenceService evidenceService,
+                               CandidateAcademicService academicService) {
         this.candidateService = candidateService;
         this.evidenceService = evidenceService;
+        this.academicService = academicService;
     }
 
     @GetMapping("/me/profile")
@@ -207,6 +214,26 @@ public class CandidateController {
                 .header("X-Content-Type-Options", "nosniff")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(res);
+    }
+
+    // ------------------------------------------------------------------
+    // Phase 4A-2C Commit 3A: Candidate Academic Declaration
+    // ------------------------------------------------------------------
+
+    @GetMapping("/me/academic")
+    @Operation(summary = "Get candidate's academic enrollment profile and verification status.")
+    public ResponseEntity<CandidateAcademicDto> getMyAcademic(@AuthenticationPrincipal AuthUser me) {
+        CandidateAcademicDto dto = academicService.getMyAcademic(me);
+        return ResponseEntity.ok(dto);
+    }
+
+    @PutMapping("/me/academic")
+    @Operation(summary = "Submit or update candidate academic declaration (self-service; verification is reviewer-controlled).")
+    public ResponseEntity<CandidateAcademicDto> updateMyAcademic(
+            @AuthenticationPrincipal AuthUser me,
+            @Valid @RequestBody CandidateAcademicInput input) {
+        CandidateAcademicDto dto = academicService.updateMyAcademic(me, input);
+        return ResponseEntity.ok(dto);
     }
 
     @GetMapping("/me/dashboard")
