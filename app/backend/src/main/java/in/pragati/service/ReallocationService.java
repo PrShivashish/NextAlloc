@@ -33,11 +33,18 @@ public class ReallocationService {
     public record Change(String type, Long opportunityId, Long candidateId,
                          Integer newCapacity, Map<String, Double> weights,
                          Boolean fullCoverage, Integer fairnessFloorPct,
-                         String policyVersion) {
+                         String policyVersion, String eligibilityRuleSetId,
+                         String eligibilityRuleSetVersion) {
+        public Change(String type, Long opportunityId, Long candidateId,
+                      Integer newCapacity, Map<String, Double> weights,
+                      Boolean fullCoverage, Integer fairnessFloorPct,
+                      String policyVersion) {
+            this(type, opportunityId, candidateId, newCapacity, weights, fullCoverage, fairnessFloorPct, policyVersion, null, null);
+        }
         public Change(String type, Long opportunityId, Long candidateId,
                       Integer newCapacity, Map<String, Double> weights,
                       Boolean fullCoverage, Integer fairnessFloorPct) {
-            this(type, opportunityId, candidateId, newCapacity, weights, fullCoverage, fairnessFloorPct, null);
+            this(type, opportunityId, candidateId, newCapacity, weights, fullCoverage, fairnessFloorPct, null, null, null);
         }
     }
 
@@ -147,8 +154,8 @@ public class ReallocationService {
                     if (policyChange != null) {
                         throw ApiException.badRequest("Only one policy change may be specified per reallocation.");
                     }
-                    if (c.weights() == null && c.fullCoverage() == null && c.fairnessFloorPct() == null && c.policyVersion() == null) {
-                        throw ApiException.badRequest("Policy change must specify at least one of: weights, full coverage, fairness floor, or policy version.");
+                    if (c.weights() == null && c.fullCoverage() == null && c.fairnessFloorPct() == null && c.policyVersion() == null && c.eligibilityRuleSetId() == null) {
+                        throw ApiException.badRequest("Policy change must specify at least one of: weights, full coverage, fairness floor, policy version, or eligibility rule set.");
                     }
                     if (c.weights() != null) {
                         if (c.weights().isEmpty()) {
@@ -181,6 +188,9 @@ public class ReallocationService {
                     }
                     if (c.policyVersion() != null && !c.policyVersion().isBlank()) {
                         descParts.add("policy version set to " + c.policyVersion());
+                    }
+                    if (c.eligibilityRuleSetId() != null && !c.eligibilityRuleSetId().isBlank()) {
+                        descParts.add("eligibility rule set changed to " + c.eligibilityRuleSetId());
                     }
                     changeDescriptions.add("Policy modified: " + String.join(", ", descParts) + ".");
                     policyChange = c;
@@ -229,18 +239,31 @@ public class ReallocationService {
                     ? policyChange.fairnessFloorPct()
                     : parent.fairnessFloorPct;
 
+            String effectiveEligibilityRuleSetId = parent.eligibilityRuleSetId != null
+                    ? parent.eligibilityRuleSetId : EligibilityEvaluator.RULESET_LEGACY;
+            String effectiveEligibilityRuleSetVersion = parent.eligibilityRuleSetVersion != null
+                    ? parent.eligibilityRuleSetVersion : EligibilityEvaluator.VERSION_1_0_0;
+            if (policyChange != null && policyChange.eligibilityRuleSetId() != null && !policyChange.eligibilityRuleSetId().isBlank()) {
+                effectiveEligibilityRuleSetId = policyChange.eligibilityRuleSetId();
+                effectiveEligibilityRuleSetVersion = policyChange.eligibilityRuleSetVersion() != null
+                        ? policyChange.eligibilityRuleSetVersion() : EligibilityEvaluator.VERSION_1_0_0;
+            }
+
             AllocationService.StartRunRequest startReq;
             if (policyChange != null && policyChange.weights() != null && !policyChange.weights().isEmpty()) {
                 startReq = new AllocationService.StartRunRequest(
-                        null, effectiveWeights, effectiveFullCoverage, effectiveFloor, effectivePolicyVersion);
+                        null, effectiveWeights, effectiveFullCoverage, effectiveFloor, effectivePolicyVersion,
+                        effectiveEligibilityRuleSetId, effectiveEligibilityRuleSetVersion);
             } else if (policyChange == null && !"custom".equals(parent.policyKey)) {
                 // Parent used a standard preset and policy wasn't changed:
                 // Pass parent.policyKey so prepareRun() logs the matching preset name in its audit trail.
                 startReq = new AllocationService.StartRunRequest(
-                        parent.policyKey, null, effectiveFullCoverage, effectiveFloor, effectivePolicyVersion);
+                        parent.policyKey, null, effectiveFullCoverage, effectiveFloor, effectivePolicyVersion,
+                        effectiveEligibilityRuleSetId, effectiveEligibilityRuleSetVersion);
             } else {
                 startReq = new AllocationService.StartRunRequest(
-                        null, effectiveWeights, effectiveFullCoverage, effectiveFloor, effectivePolicyVersion);
+                        null, effectiveWeights, effectiveFullCoverage, effectiveFloor, effectivePolicyVersion,
+                        effectiveEligibilityRuleSetId, effectiveEligibilityRuleSetVersion);
             }
             AllocationRun run = allocation.prepareRun(startReq, parent.id, overridesJson, actor);
 
@@ -248,6 +271,8 @@ public class ReallocationService {
             run.policyName = effectivePolicyName;
             run.policyKey = effectivePolicyKey;
             run.policyVersion = effectivePolicyVersion;
+            run.eligibilityRuleSetId = effectiveEligibilityRuleSetId;
+            run.eligibilityRuleSetVersion = effectiveEligibilityRuleSetVersion;
             if (policyChange == null || policyChange.weights() == null) {
                 run.weightsJson = parent.weightsJson;
             }

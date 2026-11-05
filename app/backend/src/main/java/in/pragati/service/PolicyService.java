@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -58,6 +59,10 @@ public class PolicyService {
     private final PolicyPresetRepository presets;
     private final AiServiceClient ai;
     private final SuitabilityService suitability;
+    private final CandidateAcademicRecordRepository academicRecords;
+    private final CandidateEvidenceRepository candidateEvidences;
+    private final AllocationEligibilitySnapshotRepository eligibilitySnapshots;
+    private final EligibilityEvaluator eligibilityEvaluator;
     private final AuditService audit;
     private final ObjectMapper json;
 
@@ -68,6 +73,32 @@ public class PolicyService {
     });
     private final AtomicBoolean simActive = new AtomicBoolean(false);
 
+    @org.springframework.beans.factory.annotation.Autowired
+    public PolicyService(AllocationRunRepository runs, DatasetSnapshotRepository snapshots,
+                         CandidateProfileRepository profiles, CandidateSkillRepository skills,
+                         CandidateInterestRepository interests, CandidatePreferenceRepository preferences,
+                         OpportunityRepository opportunities, OpportunitySkillRepository oppSkills,
+                         AssignmentRepository assignments, SimulationRunRepository sims,
+                         PolicyPresetRepository presets, AiServiceClient ai,
+                         SuitabilityService suitability,
+                         CandidateAcademicRecordRepository academicRecords,
+                         CandidateEvidenceRepository candidateEvidences,
+                         AllocationEligibilitySnapshotRepository eligibilitySnapshots,
+                         EligibilityEvaluator eligibilityEvaluator,
+                         AuditService audit, ObjectMapper json) {
+        this.runs = runs; this.snapshots = snapshots; this.profiles = profiles;
+        this.skills = skills; this.interests = interests; this.preferences = preferences;
+        this.opportunities = opportunities; this.oppSkills = oppSkills;
+        this.assignments = assignments; this.sims = sims; this.presets = presets;
+        this.ai = ai; this.suitability = suitability;
+        this.academicRecords = academicRecords;
+        this.candidateEvidences = candidateEvidences;
+        this.eligibilitySnapshots = eligibilitySnapshots;
+        this.eligibilityEvaluator = eligibilityEvaluator != null ? eligibilityEvaluator : new EligibilityEvaluator(json);
+        this.audit = audit; this.json = json;
+    }
+
+    /** Overloaded constructor preserving 100% backward compatibility for existing unit tests. */
     public PolicyService(AllocationRunRepository runs, DatasetSnapshotRepository snapshots,
                          CandidateProfileRepository profiles, CandidateSkillRepository skills,
                          CandidateInterestRepository interests, CandidatePreferenceRepository preferences,
@@ -75,11 +106,8 @@ public class PolicyService {
                          AssignmentRepository assignments, SimulationRunRepository sims,
                          PolicyPresetRepository presets, AiServiceClient ai,
                          SuitabilityService suitability, AuditService audit, ObjectMapper json) {
-        this.runs = runs; this.snapshots = snapshots; this.profiles = profiles;
-        this.skills = skills; this.interests = interests; this.preferences = preferences;
-        this.opportunities = opportunities; this.oppSkills = oppSkills;
-        this.assignments = assignments; this.sims = sims; this.presets = presets;
-        this.ai = ai; this.suitability = suitability; this.audit = audit; this.json = json;
+        this(runs, snapshots, profiles, skills, interests, preferences, opportunities, oppSkills,
+                assignments, sims, presets, ai, suitability, null, null, null, new EligibilityEvaluator(json), audit, json);
     }
 
     public boolean isSimulationActive() { return simActive.get(); }
@@ -207,9 +235,55 @@ public class PolicyService {
                 reqMap.computeIfAbsent(s.opportunityId, k -> new ArrayList<>()).add(s);
             }
 
+            String ruleSetId = AllocationService.resolveEligibilityRuleSetId(base);
+            String ruleSetVersion = AllocationService.resolveEligibilityRuleSetVersion(base);
+            java.time.LocalDate refDate = AllocationService.resolveReferenceDate(base);
+
+            Map<Long, CandidateAcademicRecord> acadMap = new HashMap<>();
+            if (academicRecords != null) {
+                for (CandidateAcademicRecord ar : academicRecords.findByCandidateIdIn(candIds)) {
+                    acadMap.put(ar.candidateId, ar);
+                }
+            }
+            Map<Long, List<CandidateEvidence>> evidMap = new HashMap<>();
+            if (candidateEvidences != null) {
+                for (CandidateEvidence ev : candidateEvidences.findByCandidateIdIn(candIds)) {
+                    evidMap.computeIfAbsent(ev.candidateId, k -> new ArrayList<>()).add(ev);
+                }
+            }
+
+            Map<Long, AllocationEligibilitySnapshot> snapMap = new HashMap<>();
+            if (eligibilitySnapshots != null) {
+                for (AllocationEligibilitySnapshot snap : eligibilitySnapshots.findByRunId(base.id)) {
+                    snapMap.put(snap.candidateId, snap);
+                }
+            }
+
+            Map<Long, Boolean> candEligibleMap = new HashMap<>();
+            if (!snapMap.isEmpty()) {
+                // Point-in-time preservation: reconstruct candidate eligibility from verified frozen baseline snapshots.
+                // This ensures Policy Lab counterfactuals evaluate alternative weights on the exact same eligible cohort,
+                // without silently incorporating subsequently mutated evidence.
+                for (CandidateProfile p : candidates) {
+                    AllocationEligibilitySnapshot snap = snapMap.get(p.id);
+                    candEligibleMap.put(p.id, snap != null && snap.decision == EligibilityDecision.ELIGIBLE);
+                }
+            } else {
+                // Fallback for historical baseline runs without snapshots
+                for (CandidateProfile p : candidates) {
+                    CandidateAcademicRecord ar = acadMap.get(p.id);
+                    List<CandidateEvidence> evList = evidMap.getOrDefault(p.id, List.of());
+                    EligibilityEvaluator.CandidateEvaluation candEval = eligibilityEvaluator.evaluateCandidate(
+                            ruleSetId, ruleSetVersion, p, ar, evList, refDate);
+                    candEligibleMap.put(p.id, candEval.isEligible());
+                }
+            }
+
             List<EligiblePair> pairs = new ArrayList<>();
             Map<Long, Integer> eligiblePerOpp = new HashMap<>();
             for (CandidateProfile p : candidates) {
+                Boolean isCandEligible = candEligibleMap.get(p.id);
+                if (isCandEligible == null || !isCandEligible) continue;
                 Set<String> sk = skillsMap.getOrDefault(p.id, Set.of());
                 for (Opportunity o : opps) {
                     List<OpportunitySkill> req = reqMap.getOrDefault(o.id, List.of());

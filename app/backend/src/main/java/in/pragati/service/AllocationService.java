@@ -1,6 +1,8 @@
 package in.pragati.service;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -9,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -58,6 +61,10 @@ public class AllocationService {
     private final AuditService audit;
     private final ScenarioService scenarios;
     private final SuitabilityService suitability;
+    private final CandidateAcademicRecordRepository academicRecords;
+    private final CandidateEvidenceRepository candidateEvidences;
+    private final AllocationEligibilitySnapshotRepository eligibilitySnapshots;
+    private final EligibilityEvaluator eligibilityEvaluator;
     private final ObjectMapper json;
     private final AppProperties props;
 
@@ -68,6 +75,33 @@ public class AllocationService {
     });
     private final AtomicBoolean runActive = new AtomicBoolean(false);
 
+    @org.springframework.beans.factory.annotation.Autowired
+    public AllocationService(AllocationRunRepository runs, DatasetSnapshotRepository snapshots,
+                             CandidateProfileRepository profiles, CandidateSkillRepository skills,
+                             CandidateInterestRepository interests, CandidatePreferenceRepository preferences,
+                             OpportunityRepository opportunities, OpportunitySkillRepository oppSkills,
+                             AssignmentRepository assignments, PolicyPresetRepository presets,
+                             AiServiceClient ai, MetricsService metrics, AuditService audit,
+                             ScenarioService scenarios, SuitabilityService suitability,
+                             CandidateAcademicRecordRepository academicRecords,
+                             CandidateEvidenceRepository candidateEvidences,
+                             AllocationEligibilitySnapshotRepository eligibilitySnapshots,
+                             EligibilityEvaluator eligibilityEvaluator,
+                             ObjectMapper json, AppProperties props) {
+        this.runs = runs; this.snapshots = snapshots; this.profiles = profiles;
+        this.skills = skills; this.interests = interests; this.preferences = preferences;
+        this.opportunities = opportunities; this.oppSkills = oppSkills;
+        this.assignments = assignments; this.presets = presets; this.ai = ai;
+        this.metrics = metrics; this.audit = audit; this.scenarios = scenarios;
+        this.suitability = suitability;
+        this.academicRecords = academicRecords;
+        this.candidateEvidences = candidateEvidences;
+        this.eligibilitySnapshots = eligibilitySnapshots;
+        this.eligibilityEvaluator = eligibilityEvaluator != null ? eligibilityEvaluator : new EligibilityEvaluator(json);
+        this.json = json; this.props = props;
+    }
+
+    /** Overloaded constructor preserving 100% backward compatibility for existing unit tests. */
     public AllocationService(AllocationRunRepository runs, DatasetSnapshotRepository snapshots,
                              CandidateProfileRepository profiles, CandidateSkillRepository skills,
                              CandidateInterestRepository interests, CandidatePreferenceRepository preferences,
@@ -76,20 +110,23 @@ public class AllocationService {
                              AiServiceClient ai, MetricsService metrics, AuditService audit,
                              ScenarioService scenarios, SuitabilityService suitability,
                              ObjectMapper json, AppProperties props) {
-        this.runs = runs; this.snapshots = snapshots; this.profiles = profiles;
-        this.skills = skills; this.interests = interests; this.preferences = preferences;
-        this.opportunities = opportunities; this.oppSkills = oppSkills;
-        this.assignments = assignments; this.presets = presets; this.ai = ai;
-        this.metrics = metrics; this.audit = audit; this.scenarios = scenarios;
-        this.suitability = suitability; this.json = json; this.props = props;
+        this(runs, snapshots, profiles, skills, interests, preferences, opportunities, oppSkills,
+                assignments, presets, ai, metrics, audit, scenarios, suitability,
+                null, null, null, new EligibilityEvaluator(json), json, props);
     }
 
     public record StartRunRequest(String policyKey, Map<String, Double> weights,
                                   Boolean fullCoverage, Integer fairnessFloorPct,
-                                  String policyVersion) {
+                                  String policyVersion, String eligibilityRuleSetId,
+                                  String eligibilityRuleSetVersion) {
+        public StartRunRequest(String policyKey, Map<String, Double> weights,
+                               Boolean fullCoverage, Integer fairnessFloorPct,
+                               String policyVersion) {
+            this(policyKey, weights, fullCoverage, fairnessFloorPct, policyVersion, null, null);
+        }
         public StartRunRequest(String policyKey, Map<String, Double> weights,
                                Boolean fullCoverage, Integer fairnessFloorPct) {
-            this(policyKey, weights, fullCoverage, fairnessFloorPct, null);
+            this(policyKey, weights, fullCoverage, fairnessFloorPct, null, null, null);
         }
     }
 
@@ -114,6 +151,27 @@ public class AllocationService {
         // Missing policyVersion indicates historical legacy provenance (pre-Patch 4A).
         // Must resolve to v1 and never silently default to v2.
         return "v1";
+    }
+
+    public static LocalDate resolveReferenceDate(AllocationRun run) {
+        if (run == null || run.createdAt == null) {
+            throw new IllegalStateException("Cannot determine eligibility reference date: run has no persisted creation date provenance. Historical replay refused.");
+        }
+        return run.createdAt.atZone(ZoneId.of("Asia/Kolkata")).toLocalDate();
+    }
+
+    public static String resolveEligibilityRuleSetId(AllocationRun run) {
+        if (run != null && run.eligibilityRuleSetId != null && !run.eligibilityRuleSetId.isBlank()) {
+            return run.eligibilityRuleSetId;
+        }
+        return EligibilityEvaluator.RULESET_LEGACY;
+    }
+
+    public static String resolveEligibilityRuleSetVersion(AllocationRun run) {
+        if (run != null && run.eligibilityRuleSetVersion != null && !run.eligibilityRuleSetVersion.isBlank()) {
+            return run.eligibilityRuleSetVersion;
+        }
+        return EligibilityEvaluator.VERSION_1_0_0;
     }
 
     // ------------------------------------------------------------------
@@ -204,6 +262,15 @@ public class AllocationService {
             throw ApiException.badRequest("The fairness floor must be between 0% and 95%.");
         }
 
+        String eligibilityRuleSetId = EligibilityEvaluator.RULESET_LEGACY;
+        String eligibilityRuleSetVersion = EligibilityEvaluator.VERSION_1_0_0;
+        if (req != null && req.eligibilityRuleSetId() != null && !req.eligibilityRuleSetId().isBlank()) {
+            eligibilityRuleSetId = eligibilityEvaluator.validateAndCanonicalizeRuleSet(
+                    req.eligibilityRuleSetId(), req.eligibilityRuleSetVersion());
+            eligibilityRuleSetVersion = (req.eligibilityRuleSetVersion() != null && !req.eligibilityRuleSetVersion().isBlank())
+                    ? req.eligibilityRuleSetVersion().trim() : EligibilityEvaluator.VERSION_1_0_0;
+        }
+
         AllocationRun run = new AllocationRun();
         run.runCode = "RUN-" + java.util.UUID.randomUUID().toString().substring(0, 8);
         run.number = nextRunNumber();
@@ -212,6 +279,8 @@ public class AllocationService {
         run.policyName = policyName;
         run.policyKey = policyKey;
         run.policyVersion = policyVersion;
+        run.eligibilityRuleSetId = eligibilityRuleSetId;
+        run.eligibilityRuleSetVersion = eligibilityRuleSetVersion;
         run.weightsJson = w.toJson(json);
         run.fullCoverage = fullCoverage;
         run.fairnessFloorPct = floor;
@@ -332,14 +401,58 @@ public class AllocationService {
             }
 
             Weights w = Weights.parse(run.weightsJson, json);
+
+            String ruleSetId = resolveEligibilityRuleSetId(run);
+            String ruleSetVersion = resolveEligibilityRuleSetVersion(run);
+            LocalDate refDate = resolveReferenceDate(run);
+
+            Map<Long, CandidateAcademicRecord> acadMap = new HashMap<>();
+            if (academicRecords != null) {
+                for (CandidateAcademicRecord ar : academicRecords.findByCandidateIdIn(candIds)) {
+                    acadMap.put(ar.candidateId, ar);
+                }
+            }
+            Map<Long, List<CandidateEvidence>> evidMap = new HashMap<>();
+            if (candidateEvidences != null) {
+                for (CandidateEvidence ev : candidateEvidences.findByCandidateIdIn(candIds)) {
+                    evidMap.computeIfAbsent(ev.candidateId, k -> new ArrayList<>()).add(ev);
+                }
+            }
+
             st.mark("Evaluating eligibility");
+            // 1. Evaluate candidate-level eligibility once per candidate
+            Map<Long, EligibilityEvaluator.CandidateEvaluation> candEvalMap = new HashMap<>();
+            List<AllocationEligibilitySnapshot> snapshotsToSave = new ArrayList<>();
+            for (CandidateProfile p : candidates) {
+                CandidateAcademicRecord ar = acadMap.get(p.id);
+                List<CandidateEvidence> evList = evidMap.getOrDefault(p.id, List.of());
+                EligibilityEvaluator.CandidateEvaluation candEval = eligibilityEvaluator.evaluateCandidate(
+                        ruleSetId, ruleSetVersion, p, ar, evList, refDate);
+                candEvalMap.put(p.id, candEval);
+                snapshotsToSave.add(eligibilityEvaluator.createSnapshot(run.id, candEval));
+            }
+
+            // Persist candidate eligibility decision snapshots idempotently per candidate
+            if (eligibilitySnapshots != null) {
+                persistAndReconcileSnapshots(run.id, candidates, snapshotsToSave);
+            }
+
+            // 2. Evaluate opportunity-specific eligibility and generate eligible pairs
             List<EligiblePair> pairs = new ArrayList<>();
             Map<Long, Integer> eligiblePerOpp = new HashMap<>();
             for (CandidateProfile p : candidates) {
+                EligibilityEvaluator.CandidateEvaluation candEval = candEvalMap.get(p.id);
+                if (candEval == null || !candEval.isEligible()) {
+                    // Candidate-level failure or missing evidence: do not generate any allocation edges
+                    continue;
+                }
                 Set<String> sk = skillsMap.getOrDefault(p.id, Set.of());
                 for (Opportunity o : opps) {
                     List<OpportunitySkill> req = reqMap.getOrDefault(o.id, List.of());
-                    if (!suitability.check(p, sk, o, req).eligible()) continue;
+                    EligibilityEvaluator.PairEvaluation pairEval = eligibilityEvaluator.evaluatePair(
+                            ruleSetId, ruleSetVersion, p, sk, acadMap.get(p.id), evidMap.getOrDefault(p.id, List.of()),
+                            o, req, refDate);
+                    if (!pairEval.isEligible() || !suitability.check(p, sk, o, req).eligible()) continue;
                     Integer rank = prefMap.getOrDefault(p.id, Map.of()).get(o.id);
                     PairScore s = suitability.score(p, sk, interestMap.getOrDefault(p.id, Set.of()),
                             rank, o, req, w);
@@ -460,6 +573,38 @@ public class AllocationService {
         run.totalRuntimeMs = System.currentTimeMillis() - t0;
         run.stageTimingsJson = st.json();
         runs.save(run);
+    }
+
+    private void persistAndReconcileSnapshots(Long runId, List<CandidateProfile> candidates,
+                                             List<AllocationEligibilitySnapshot> snapshotsToSave) {
+        List<AllocationEligibilitySnapshot> existing = eligibilitySnapshots.findByRunId(runId);
+        Set<Long> existingCandidateIds = existing.stream()
+                .map(s -> s.candidateId)
+                .collect(Collectors.toSet());
+
+        List<AllocationEligibilitySnapshot> missingSnapshots = snapshotsToSave.stream()
+                .filter(s -> !existingCandidateIds.contains(s.candidateId))
+                .toList();
+
+        if (!missingSnapshots.isEmpty()) {
+            eligibilitySnapshots.saveAll(missingSnapshots);
+        }
+
+        // Reconcile that every candidate in the defined cohort has a persisted snapshot
+        List<AllocationEligibilitySnapshot> finalSnapshots = eligibilitySnapshots.findByRunId(runId);
+        Set<Long> recordedCandidateIds = finalSnapshots.stream()
+                .map(s -> s.candidateId)
+                .collect(Collectors.toSet());
+
+        List<Long> missingCandidateIds = candidates.stream()
+                .map(p -> p.id)
+                .filter(id -> !recordedCandidateIds.contains(id))
+                .toList();
+
+        if (!missingCandidateIds.isEmpty()) {
+            throw new IllegalStateException("Snapshot reconciliation failure for run #" + runId
+                    + ": missing snapshots for candidate IDs " + missingCandidateIds);
+        }
     }
 
     /**
