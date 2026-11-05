@@ -45,8 +45,10 @@ public class MetricsService {
         // ---- Group metrics (rural/urban, state, qualification) ----
         Map<String, Map<String, List<CandidateProfile>>> groups = new LinkedHashMap<>();
         for (CandidateProfile p : candidates) {
-            groups.computeIfAbsent("RURAL_URBAN", k -> new LinkedHashMap<>())
-                    .computeIfAbsent(Labels.label(p.locationType), k -> new ArrayList<>()).add(p);
+            if (p.locationType != null) {
+                groups.computeIfAbsent("RURAL_URBAN", k -> new LinkedHashMap<>())
+                        .computeIfAbsent(Labels.label(p.locationType), k -> new ArrayList<>()).add(p);
+            }
             if (p.state != null) {
                 groups.computeIfAbsent("STATE", k -> new LinkedHashMap<>())
                         .computeIfAbsent(p.state, k -> new ArrayList<>()).add(p);

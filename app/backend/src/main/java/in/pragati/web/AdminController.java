@@ -47,15 +47,36 @@ public class AdminController {
     public record RunSummary(Long id, int number, String code, String scenario, String policyName,
                              String status, String solverStatus, java.time.Instant createdAt,
                              java.time.Instant completedAt, Long totalRuntimeMs, boolean stale,
-                             boolean reallocation, Integer parentRunNumber) { }
+                             boolean reallocation, Integer parentRunNumber,
+                             String eligibilityRuleSetId, String eligibilityRuleSetVersion) {
+        public RunSummary(Long id, int number, String code, String scenario, String policyName,
+                          String status, String solverStatus, java.time.Instant createdAt,
+                          java.time.Instant completedAt, Long totalRuntimeMs, boolean stale,
+                          boolean reallocation, Integer parentRunNumber) {
+            this(id, number, code, scenario, policyName, status, solverStatus, createdAt, completedAt,
+                 totalRuntimeMs, stale, reallocation, parentRunNumber, "prototype-legacy-v1", "1.0.0");
+        }
+    }
     public record RunDetail(RunSummary run, DatasetSummary dataset, String infeasibleMessage,
                             List<OverviewService.StageInfo> stages, Provenance provenance) { }
     public record Provenance(String runId, int runNumber, String scenario, String datasetVersion,
                              String datasetFingerprint, int candidates, int opportunities, int seats,
                              long seed, String policyName, String policyKey, String policyVersion,
+                             String eligibilityRuleSetId, String eligibilityRuleSetVersion,
                              Map<String, Double> weights, String optimizer, String solverStatus,
                              Long objective, int variables, int constraints, long solverRuntimeMs,
-                             long totalRuntimeMs, int workers, long solverSeed) { }
+                             long totalRuntimeMs, int workers, long solverSeed) {
+        public Provenance(String runId, int runNumber, String scenario, String datasetVersion,
+                          String datasetFingerprint, int candidates, int opportunities, int seats,
+                          long seed, String policyName, String policyKey, String policyVersion,
+                          Map<String, Double> weights, String optimizer, String solverStatus,
+                          Long objective, int variables, int constraints, long solverRuntimeMs,
+                          long totalRuntimeMs, int workers, long solverSeed) {
+            this(runId, runNumber, scenario, datasetVersion, datasetFingerprint, candidates, opportunities, seats,
+                 seed, policyName, policyKey, policyVersion, "prototype-legacy-v1", "1.0.0",
+                 weights, optimizer, solverStatus, objective, variables, constraints, solverRuntimeMs, totalRuntimeMs, workers, solverSeed);
+        }
+    }
     public record GroupRow(String groupValue, int population, int allocated, double rate,
                            double avgSuitability, double preferenceSatisfaction) { }
     public record FairnessDto(List<GroupRow> ruralUrban, List<GroupRow> states, List<GroupRow> qualifications,
@@ -71,10 +92,16 @@ public class AdminController {
                            Map<String, Object> details) { }
     public record StartRunRequest(String policyKey, Map<String, Double> weights,
                                   Boolean fullCoverage, Integer fairnessFloorPct,
-                                  String policyVersion) {
+                                  String policyVersion, String eligibilityRuleSetId,
+                                  String eligibilityRuleSetVersion) {
+        public StartRunRequest(String policyKey, Map<String, Double> weights,
+                               Boolean fullCoverage, Integer fairnessFloorPct,
+                               String policyVersion) {
+            this(policyKey, weights, fullCoverage, fairnessFloorPct, policyVersion, null, null);
+        }
         public StartRunRequest(String policyKey, Map<String, Double> weights,
                                Boolean fullCoverage, Integer fairnessFloorPct) {
-            this(policyKey, weights, fullCoverage, fairnessFloorPct, null);
+            this(policyKey, weights, fullCoverage, fairnessFloorPct, null, null, null);
         }
     }
 
@@ -205,7 +232,8 @@ public class AdminController {
         return new RunSummary(r.id, r.number, r.runCode, Labels.label(r.scenario), r.policyName,
                 Labels.label(r.status), r.solverStatus == null ? null : Labels.label(r.solverStatus),
                 r.createdAt, r.completedAt, r.totalRuntimeMs, stale,
-                r.parentRunId != null, parentNumber);
+                r.parentRunId != null, parentNumber,
+                r.eligibilityRuleSetId, r.eligibilityRuleSetVersion);
     }
 
     @PostMapping("/runs")
@@ -213,11 +241,14 @@ public class AdminController {
     public ResponseEntity<RunSummary> startRun(@AuthenticationPrincipal AuthUser me,
                                                @RequestBody(required = false) StartRunRequest req) {
         AllocationRun run = allocation.startRun(
-                new AllocationService.StartRunRequest(req == null ? null : req.policyKey(),
+                new AllocationService.StartRunRequest(
+                        req == null ? null : req.policyKey(),
                         req == null ? null : req.weights(),
                         req == null ? null : req.fullCoverage(),
                         req == null ? null : req.fairnessFloorPct(),
-                        req == null ? null : req.policyVersion()), me);
+                        req == null ? null : req.policyVersion(),
+                        req == null ? null : req.eligibilityRuleSetId(),
+                        req == null ? null : req.eligibilityRuleSetVersion()), me);
         DatasetSnapshot current = snapshots.findTopByOrderByIdDesc().orElse(null);
         return ResponseEntity.accepted().body(toRunSummary(run, current));
     }
@@ -258,7 +289,9 @@ public class AdminController {
                 snap != null ? snap.opportunityCount : 0,
                 snap != null ? snap.seatCount : 0,
                 snap != null ? snap.seed : 0,
-                r.policyName, r.policyKey, r.policyVersion, weights,
+                r.policyName, r.policyKey, r.policyVersion,
+                r.eligibilityRuleSetId, r.eligibilityRuleSetVersion,
+                weights,
                 "OR-Tools CP-SAT (global) + deterministic sequential baseline",
                 r.solverStatus == null ? null : Labels.label(r.solverStatus),
                 r.objective, r.variables, r.constraints, r.solverRuntimeMs, r.totalRuntimeMs,

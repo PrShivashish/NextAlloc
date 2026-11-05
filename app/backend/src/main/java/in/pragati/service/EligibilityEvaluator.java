@@ -415,7 +415,11 @@ public class EligibilityEvaluator {
                                     human.add("Institutional NOC validity has expired.");
                                 }
                                 case VERIFIED -> {
-                                    // Check expiration against reference date
+                                    // Check effective dates against reference date
+                                    if (noc.validFrom != null && noc.validFrom.isAfter(refDate)) {
+                                        codes.add(EligibilityReasonCode.INSTITUTIONAL_NOC_EXPIRED);
+                                        human.add("Institutional NOC is not yet effective as of reference date " + refDate + " (valid from " + noc.validFrom + ").");
+                                    }
                                     if (noc.validUntil != null && noc.validUntil.isBefore(refDate)) {
                                         codes.add(EligibilityReasonCode.INSTITUTIONAL_NOC_EXPIRED);
                                         human.add("Institutional NOC validity expired on " + noc.validUntil + ".");
