@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.concurrent.ExecutorService;
@@ -45,6 +46,17 @@ import in.pragati.service.SuitabilityService.PairScore;
 public class AllocationService {
 
     private static final Logger log = LoggerFactory.getLogger(AllocationService.class);
+
+    public static final String ERROR_UNSAFE_RETRY =
+            "Allocation run retry rejected: eligibility decision snapshots already exist. Replaying an allocation after decision ledger establishment is prohibited; start a new run.";
+    public static final String ERROR_GENERIC_FAILURE =
+            "The allocation could not be completed. Please try again.";
+
+    static class UnsafeRetryException extends RuntimeException {
+        UnsafeRetryException(String message) {
+            super(message);
+        }
+    }
 
     private final AllocationRunRepository runs;
     private final DatasetSnapshotRepository snapshots;
@@ -420,6 +432,19 @@ public class AllocationService {
             }
 
             st.mark("Evaluating eligibility");
+
+            // Check for pre-existing eligibility snapshots to detect unsafe same-run retries.
+            // Under NextAlloc's current data model, complete historical input provenance (candidate skills,
+            // opportunity requirements, capacities, and unrecorded applicant evidence) is not frozen.
+            // If ANY snapshots already exist for this run before execution begins, same-run replay is strictly prohibited.
+            List<AllocationEligibilitySnapshot> existingSnapshots = eligibilitySnapshots != null
+                    ? eligibilitySnapshots.findByRunId(run.id)
+                    : List.of();
+
+            if (!existingSnapshots.isEmpty()) {
+                throw new UnsafeRetryException(ERROR_UNSAFE_RETRY);
+            }
+
             // 1. Evaluate candidate-level eligibility once per candidate
             Map<Long, EligibilityEvaluator.CandidateEvaluation> candEvalMap = new HashMap<>();
             List<AllocationEligibilitySnapshot> snapshotsToSave = new ArrayList<>();
@@ -437,10 +462,23 @@ public class AllocationService {
                 persistAndReconcileSnapshots(run.id, candidates, snapshotsToSave);
             }
 
+            // Retrieve snapshot decision map to ensure candidate eligibility strictly adheres to stored ledger
+            Map<Long, AllocationEligibilitySnapshot> snapshotMap = new HashMap<>();
+            if (eligibilitySnapshots != null) {
+                for (AllocationEligibilitySnapshot s : eligibilitySnapshots.findByRunId(run.id)) {
+                    snapshotMap.put(s.candidateId, s);
+                }
+            }
+
             // 2. Evaluate opportunity-specific eligibility and generate eligible pairs
             List<EligiblePair> pairs = new ArrayList<>();
             Map<Long, Integer> eligiblePerOpp = new HashMap<>();
             for (CandidateProfile p : candidates) {
+                AllocationEligibilitySnapshot snap = snapshotMap.get(p.id);
+                if (snap != null && snap.decision != EligibilityDecision.ELIGIBLE) {
+                    // Candidate-level failure per stored decision snapshot: do not generate any allocation edges
+                    continue;
+                }
                 EligibilityEvaluator.CandidateEvaluation candEval = candEvalMap.get(p.id);
                 if (candEval == null || !candEval.isEligible()) {
                     // Candidate-level failure or missing evidence: do not generate any allocation edges
@@ -558,12 +596,18 @@ public class AllocationService {
         } catch (Exception e) {
             log.error("Allocation run {} failed", runId, e);
             run.status = RunStatus.FAILED;
-            run.errorMessage = "The allocation could not be completed. Please try again.";
+            if (e instanceof UnsafeRetryException) {
+                run.errorMessage = ERROR_UNSAFE_RETRY;
+            } else {
+                run.errorMessage = ERROR_GENERIC_FAILURE;
+            }
             run.completedAt = Instant.now();
             finishRun(run, st, t0);
             audit.logSystem(AuditAction.ALLOCATION_FAILED, "AllocationRun", run.runCode,
                     "Allocation run #" + run.number + " failed.",
-                    Map.of("technical", String.valueOf(e).substring(0, Math.min(200, String.valueOf(e).length()))));
+                    Map.of("technical", e instanceof UnsafeRetryException
+                            ? "UNSAFE_RETRY_PREEXISTING_SNAPSHOTS"
+                            : e.getClass().getSimpleName()));
         } finally {
             runActive.set(false);
         }

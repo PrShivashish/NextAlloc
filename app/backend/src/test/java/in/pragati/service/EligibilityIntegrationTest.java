@@ -77,6 +77,9 @@ class EligibilityIntegrationTest {
     private AllocationEligibilitySnapshotRepository eligSnapshotRepo;
 
     @Autowired
+    private AssignmentRepository assignmentRepo;
+
+    @Autowired
     private ObjectMapper json;
 
     @MockBean
@@ -594,7 +597,7 @@ class EligibilityIntegrationTest {
     // Gate 2: Partial interrupted snapshot write repaired safely on retry
     // ------------------------------------------------------------------
     @Test
-    @DisplayName("Gate 2: Partial interrupted snapshot write repaired without duplicates on retry")
+    @DisplayName("Gate 2: Partial interrupted snapshot write fails closed on same-run retry")
     void testGate2_partialInterruptedSnapshotWriteRepairedOnRetry() throws Exception {
         AllocationService.StartRunRequest req = new AllocationService.StartRunRequest(
                 "balanced", null, false, 0, "v2",
@@ -606,33 +609,48 @@ class EligibilityIntegrationTest {
 
         // Simulate an interrupted run that persisted a snapshot for only the FIRST candidate
         CandidateProfile first = activeCandidates.get(0);
+        CandidateAcademicRecord acad = new CandidateAcademicRecord();
+        acad.candidateId = first.id;
+        acad.enrollmentStatus = EnrollmentStatus.NOT_ENROLLED;
+        acadRepo.save(acad);
+
         AllocationEligibilitySnapshot partial = new AllocationEligibilitySnapshot();
         partial.runId = run.id;
         partial.candidateId = first.id;
         partial.decision = EligibilityDecision.ELIGIBLE;
         partial.reasonCodesJson = "[]";
-        eligSnapshotRepo.save(partial);
+        partial = eligSnapshotRepo.save(partial);
 
         assertEquals(1, eligSnapshotRepo.findByRunId(run.id).size(),
                 "Precondition: only 1 snapshot exists prior to retry");
 
-        // Execute run (replaying/retrying the interrupted run)
+        reset(aiClient);
+
+        // Execute run (replaying/retrying the interrupted run with pre-existing snapshots)
         invokeExecute(run.id);
 
-        List<AllocationEligibilitySnapshot> repaired = eligSnapshotRepo.findByRunId(run.id);
-        assertEquals(activeCandidates.size(), repaired.size(),
-                "All missing candidate snapshots must be populated on retry");
+        // 1. Zero optimizer invocations
+        verify(aiClient, never()).optimize(any());
 
-        // Verify uniqueness: exactly one snapshot per candidate
-        Set<Long> candidateIdsInSnapshots = repaired.stream().map(s -> s.candidateId).collect(Collectors.toSet());
-        assertEquals(activeCandidates.size(), candidateIdsInSnapshots.size(),
-                "Each candidate must have exactly one snapshot with no duplicate records");
+        // 2. No new snapshots are added: count remains exactly 1
+        List<AllocationEligibilitySnapshot> snapshotsAfter = eligSnapshotRepo.findByRunId(run.id);
+        assertEquals(1, snapshotsAfter.size(),
+                "Unsafe retry must NOT add new snapshots; count must remain 1");
 
-        // Idempotent re-execution must not insert duplicate rows
-        invokeExecute(run.id);
-        List<AllocationEligibilitySnapshot> afterSecondRetry = eligSnapshotRepo.findByRunId(run.id);
-        assertEquals(activeCandidates.size(), afterSecondRetry.size(),
-                "Subsequent retry must remain idempotent and not add duplicate rows");
+        // 3. Existing snapshot remains unchanged
+        AllocationEligibilitySnapshot snap = snapshotsAfter.get(0);
+        assertEquals(partial.id, snap.id);
+        assertEquals(first.id, snap.candidateId);
+        assertEquals(EligibilityDecision.ELIGIBLE, snap.decision);
+
+        // 4. No assignments are created
+        assertEquals(0, assignmentRepo.countByRunIdAndSource(run.id, AssignmentSource.GLOBAL),
+                "No assignments must be created on rejected retry");
+
+        // 5. Run status does not remain QUEUED or RUNNING; marked FAILED with controlled error
+        AllocationRun finalRun = runRepo.findById(run.id).orElseThrow();
+        assertEquals(RunStatus.FAILED, finalRun.status);
+        assertEquals(AllocationService.ERROR_UNSAFE_RETRY, finalRun.errorMessage);
     }
 
     // ------------------------------------------------------------------
@@ -736,5 +754,399 @@ class EligibilityIntegrationTest {
         ApiException ex = assertThrows(ApiException.class, () -> reallocationService.start(req, adminUser));
         assertTrue(ex.getMessage().contains("Unsupported eligibility rule-set"),
                 "Reallocation must reject unsupported eligibility rule set IDs");
+    }
+
+    // ------------------------------------------------------------------
+    // Gate 3: Diagnostic test — Retry after evidence change
+    // ------------------------------------------------------------------
+    @Test
+    @DisplayName("Gate 3: Same-run retry after evidence change must not contradict stored snapshot")
+    void testGate3_sameRunRetryAfterEvidenceChange() throws Exception {
+        CandidateProfile cand = new CandidateProfile();
+        cand.userId = 8807L;
+        cand.fullName = "Retry Evidence Mutation Candidate";
+        cand.candidateState = CandidateState.ACTIVE;
+        cand.dob = LocalDate.of(2003, 1, 1);
+        cand.employmentType = EmploymentType.UNEMPLOYED;
+        cand.qualification = Qualification.BACHELORS;
+        cand.locationType = LocationType.RURAL;
+        cand.state = "Karnataka";
+        CandidateProfile savedCand = profileRepo.save(cand);
+        final int candId = savedCand.id.intValue();
+
+        CandidateAcademicRecord acad = new CandidateAcademicRecord();
+        acad.candidateId = savedCand.id;
+        acad.enrollmentStatus = EnrollmentStatus.ENROLLED_FULL_TIME;
+        acad.finalYearStatus = FinalYearStatus.VERIFIED_FINAL_YEAR;
+        acadRepo.save(acad);
+
+        // Give candidate the required skills for softwareOpp
+        for (OpportunitySkill os : oppSkillRepo.findByOpportunityId(softwareOpp.id)) {
+            CandidateSkill cs = new CandidateSkill();
+            cs.candidateId = savedCand.id;
+            cs.rawLabel = os.skill;
+            cs.canonical = os.skill;
+            skillRepo.save(cs);
+        }
+
+        // Initially NOC is SUBMITTED (unverified)
+        CandidateEvidence noc = new CandidateEvidence();
+        noc.candidateId = savedCand.id;
+        noc.evidenceType = "INSTITUTIONAL_NOC";
+        noc.documentReference = "NOC-SUBMITTED-8807.pdf";
+        noc.signatoryRole = SignatoryRole.PRINCIPAL;
+        noc.verificationStatus = EvidenceStatus.SUBMITTED;
+        noc = evidRepo.save(noc);
+
+        AllocationService.StartRunRequest req = new AllocationService.StartRunRequest(
+                "balanced", null, false, 0, "v2",
+                EligibilityEvaluator.RULESET_PMIS_2026_DEMO, "1.0.0");
+        AllocationRun run = allocationService.prepareRun(req, null, null, adminUser);
+
+        // First attempt: executes and persists snapshot (candidate is INELIGIBLE)
+        invokeExecute(run.id);
+
+        AllocationEligibilitySnapshot snap = eligSnapshotRepo.findByRunIdAndCandidateId(run.id, savedCand.id).orElseThrow();
+        assertEquals(EligibilityDecision.INELIGIBLE, snap.decision, "Initial snapshot must be INELIGIBLE");
+        assertEquals("SUBMITTED", snap.evidenceStatusSnapshot);
+
+        // Now evidence is verified after first attempt
+        noc.verificationStatus = EvidenceStatus.VERIFIED;
+        noc.declaresNoAcademicConflict = true;
+        noc.validFrom = LocalDate.of(2025, 1, 1);
+        noc.validUntil = LocalDate.of(2027, 1, 1);
+        evidRepo.save(noc);
+
+        // Now retry the same run: must be REJECTED before optimizer invocation
+        reset(aiClient);
+
+        invokeExecute(run.id);
+
+        // 1. Zero optimizer invocations on unsafe retry
+        verify(aiClient, never()).optimize(any());
+
+        // 2. Run status must be FAILED with informative error message
+        AllocationRun failedRun = runRepo.findById(run.id).orElseThrow();
+        assertEquals(RunStatus.FAILED, failedRun.status);
+        assertEquals(AllocationService.ERROR_UNSAFE_RETRY, failedRun.errorMessage);
+
+        // 3. Stored snapshot must be PRESERVED untouched
+        AllocationEligibilitySnapshot snapAfter = eligSnapshotRepo.findByRunIdAndCandidateId(run.id, savedCand.id).orElseThrow();
+        assertEquals(EligibilityDecision.INELIGIBLE, snapAfter.decision, "Historical snapshot must NOT be overwritten on retry");
+        assertEquals("SUBMITTED", snapAfter.evidenceStatusSnapshot);
+        assertEquals(snap.id, snapAfter.id, "Snapshot primary key must remain identical");
+
+        // 4. Starting a NEW run independently evaluates updated evidence and succeeds
+        when(aiClient.optimize(any())).thenReturn(new AiServiceClient.OptimizeResult(
+                "OPTIMAL", 100L, 42, new AiServiceClient.ModelStats(10, 10, 10, 42), List.of(), List.of()));
+        AllocationService.StartRunRequest newReq = new AllocationService.StartRunRequest(
+                "balanced", null, false, 0, "v2",
+                EligibilityEvaluator.RULESET_PMIS_2026_DEMO, "1.0.0");
+        AllocationRun newRun = allocationService.prepareRun(newReq, null, null, adminUser);
+        invokeExecute(newRun.id);
+
+        AllocationRun completedNewRun = runRepo.findById(newRun.id).orElseThrow();
+        assertEquals(RunStatus.COMPLETED, completedNewRun.status);
+
+        AllocationEligibilitySnapshot newSnap = eligSnapshotRepo.findByRunIdAndCandidateId(newRun.id, savedCand.id).orElseThrow();
+        assertEquals(EligibilityDecision.ELIGIBLE, newSnap.decision, "New run must evaluate updated evidence as ELIGIBLE");
+        assertEquals("VERIFIED", newSnap.evidenceStatusSnapshot);
+    }
+
+    // ------------------------------------------------------------------
+    // Gate 3 Regression: Verified NOC -> revoked NOC between attempts
+    // ------------------------------------------------------------------
+    @Test
+    @DisplayName("Gate 3: Verified NOC revoked between attempts causes same-run retry rejection")
+    void testGate3_sameRunRetry_revokedNocRejected() throws Exception {
+        CandidateProfile cand = new CandidateProfile();
+        cand.userId = 8808L;
+        cand.fullName = "Revocation Test Candidate";
+        cand.candidateState = CandidateState.ACTIVE;
+        cand.dob = LocalDate.of(2003, 1, 1);
+        cand.employmentType = EmploymentType.UNEMPLOYED;
+        cand.qualification = Qualification.BACHELORS;
+        cand.locationType = LocationType.RURAL;
+        cand.state = "Karnataka";
+        cand = profileRepo.save(cand);
+
+        CandidateAcademicRecord acad = new CandidateAcademicRecord();
+        acad.candidateId = cand.id;
+        acad.enrollmentStatus = EnrollmentStatus.ENROLLED_FULL_TIME;
+        acad.finalYearStatus = FinalYearStatus.VERIFIED_FINAL_YEAR;
+        acadRepo.save(acad);
+
+        for (OpportunitySkill os : oppSkillRepo.findByOpportunityId(softwareOpp.id)) {
+            CandidateSkill cs = new CandidateSkill();
+            cs.candidateId = cand.id;
+            cs.rawLabel = os.skill;
+            cs.canonical = os.skill;
+            skillRepo.save(cs);
+        }
+
+        // Initially NOC is VERIFIED
+        CandidateEvidence noc = new CandidateEvidence();
+        noc.candidateId = cand.id;
+        noc.evidenceType = "INSTITUTIONAL_NOC";
+        noc.documentReference = "NOC-VALID-8808.pdf";
+        noc.signatoryRole = SignatoryRole.PRINCIPAL;
+        noc.verificationStatus = EvidenceStatus.VERIFIED;
+        noc.declaresNoAcademicConflict = true;
+        noc.validFrom = LocalDate.of(2025, 1, 1);
+        noc.validUntil = LocalDate.of(2027, 1, 1);
+        noc = evidRepo.save(noc);
+
+        AllocationService.StartRunRequest req = new AllocationService.StartRunRequest(
+                "balanced", null, false, 0, "v2",
+                EligibilityEvaluator.RULESET_PMIS_2026_DEMO, "1.0.0");
+        AllocationRun run = allocationService.prepareRun(req, null, null, adminUser);
+
+        // Attempt 1 succeeds with ELIGIBLE snapshot
+        invokeExecute(run.id);
+        AllocationEligibilitySnapshot snap1 = eligSnapshotRepo.findByRunIdAndCandidateId(run.id, cand.id).orElseThrow();
+        assertEquals(EligibilityDecision.ELIGIBLE, snap1.decision);
+        assertEquals("VERIFIED", snap1.evidenceStatusSnapshot);
+
+        // NOC revoked post-run
+        noc.verificationStatus = EvidenceStatus.REJECTED;
+        evidRepo.save(noc);
+
+        // Retry same run: must be rejected before optimizer
+        reset(aiClient);
+        invokeExecute(run.id);
+
+        verify(aiClient, never()).optimize(any());
+
+        AllocationRun runAfter = runRepo.findById(run.id).orElseThrow();
+        assertEquals(RunStatus.FAILED, runAfter.status);
+        assertEquals(AllocationService.ERROR_UNSAFE_RETRY, runAfter.errorMessage);
+
+        // Snapshot preserved
+        AllocationEligibilitySnapshot snapAfter = eligSnapshotRepo.findByRunIdAndCandidateId(run.id, cand.id).orElseThrow();
+        assertEquals(EligibilityDecision.ELIGIBLE, snapAfter.decision);
+        assertEquals("VERIFIED", snapAfter.evidenceStatusSnapshot);
+        assertEquals(snap1.id, snapAfter.id);
+    }
+
+    // ------------------------------------------------------------------
+    // Gate 3 Regression: Changed candidate skills with unchanged candidate eligibility
+    // ------------------------------------------------------------------
+    @Test
+    @DisplayName("Gate 3: Changed candidate skills between attempts rejects same-run retry")
+    void testGate3_sameRunRetry_changedSkillsRejected() throws Exception {
+        // Graduate candidate (candidate-level ELIGIBLE without NOC)
+        CandidateProfile cand = new CandidateProfile();
+        cand.userId = 8809L;
+        cand.fullName = "Skill Drift Candidate";
+        cand.candidateState = CandidateState.ACTIVE;
+        cand.dob = LocalDate.of(2001, 1, 1);
+        cand.employmentType = EmploymentType.UNEMPLOYED;
+        cand.qualification = Qualification.BACHELORS;
+        cand.locationType = LocationType.URBAN;
+        cand = profileRepo.save(cand);
+
+        CandidateAcademicRecord acad = new CandidateAcademicRecord();
+        acad.candidateId = cand.id;
+        acad.enrollmentStatus = EnrollmentStatus.NOT_ENROLLED;
+        acadRepo.save(acad);
+
+        CandidateSkill s1 = new CandidateSkill();
+        s1.candidateId = cand.id;
+        s1.rawLabel = "Java";
+        s1.canonical = "Java";
+        s1.validated = true;
+        skillRepo.save(s1);
+
+        AllocationService.StartRunRequest req = new AllocationService.StartRunRequest(
+                "balanced", null, false, 0, "v2",
+                EligibilityEvaluator.RULESET_PMIS_2026_DEMO, "1.0.0");
+        AllocationRun run = allocationService.prepareRun(req, null, null, adminUser);
+
+        // Attempt 1 executes and establishes complete snapshots
+        invokeExecute(run.id);
+        AllocationEligibilitySnapshot snap1 = eligSnapshotRepo.findByRunIdAndCandidateId(run.id, cand.id).orElseThrow();
+        assertEquals(EligibilityDecision.ELIGIBLE, snap1.decision);
+
+        // Candidate adds a new skill post-run (candidate eligibility flag is STILL ELIGIBLE)
+        CandidateSkill s2 = new CandidateSkill();
+        s2.candidateId = cand.id;
+        s2.rawLabel = "Python";
+        s2.canonical = "Python";
+        s2.validated = true;
+        skillRepo.save(s2);
+
+        // Retry same run: must be rejected because complete historical input provenance is unavailable
+        reset(aiClient);
+        invokeExecute(run.id);
+
+        verify(aiClient, never()).optimize(any());
+
+        AllocationRun runAfter = runRepo.findById(run.id).orElseThrow();
+        assertEquals(RunStatus.FAILED, runAfter.status);
+        assertEquals(AllocationService.ERROR_UNSAFE_RETRY, runAfter.errorMessage);
+    }
+
+    // ------------------------------------------------------------------
+    // Gate 3 Regression: Changed opportunity requirements rejects same-run retry
+    // ------------------------------------------------------------------
+    @Test
+    @DisplayName("Gate 3: Changed opportunity requirements rejects same-run retry")
+    void testGate3_sameRunRetry_changedOpportunityRequirementsRejected() throws Exception {
+        AllocationService.StartRunRequest req = new AllocationService.StartRunRequest(
+                "balanced", null, false, 0, "v2",
+                EligibilityEvaluator.RULESET_PMIS_2026_DEMO, "1.0.0");
+        AllocationRun run = allocationService.prepareRun(req, null, null, adminUser);
+
+        // Attempt 1 executes and establishes complete snapshots
+        invokeExecute(run.id);
+
+        // Mutate opportunity requirement post-run
+        OpportunitySkill newSkillReq = new OpportunitySkill();
+        newSkillReq.opportunityId = softwareOpp.id;
+        newSkillReq.skill = "Rust";
+        newSkillReq.mandatory = true;
+        oppSkillRepo.save(newSkillReq);
+
+        // Retry same run: must be rejected before optimizer
+        reset(aiClient);
+        invokeExecute(run.id);
+
+        verify(aiClient, never()).optimize(any());
+
+        AllocationRun runAfter = runRepo.findById(run.id).orElseThrow();
+        assertEquals(RunStatus.FAILED, runAfter.status);
+        assertEquals(AllocationService.ERROR_UNSAFE_RETRY, runAfter.errorMessage);
+    }
+
+    // ------------------------------------------------------------------
+    // Gate 3 Regression: Hidden input changes in un-snapshotted candidate fails closed
+    // ------------------------------------------------------------------
+    @Test
+    @DisplayName("Gate 3: Partial snapshot with hidden input drift in unsnapshotted candidate fails closed")
+    void testGate3_sameRunRetry_hiddenInputChangesInUnsnapshottedCandidate() throws Exception {
+        // Candidate A: has pre-existing snapshot
+        CandidateProfile candA = new CandidateProfile();
+        candA.userId = 8810L;
+        candA.fullName = "Candidate A (Snapshotted)";
+        candA.candidateState = CandidateState.ACTIVE;
+        candA.dob = LocalDate.of(2002, 1, 1);
+        candA.employmentType = EmploymentType.UNEMPLOYED;
+        candA.qualification = Qualification.BACHELORS;
+        candA.locationType = LocationType.RURAL;
+        candA.state = "Karnataka";
+        candA = profileRepo.save(candA);
+
+        CandidateAcademicRecord acadA = new CandidateAcademicRecord();
+        acadA.candidateId = candA.id;
+        acadA.enrollmentStatus = EnrollmentStatus.NOT_ENROLLED;
+        acadRepo.save(acadA);
+
+        // Candidate B: initially has no snapshot and no skills
+        CandidateProfile candB = new CandidateProfile();
+        candB.userId = 8811L;
+        candB.fullName = "Candidate B (Unsnapshotted)";
+        candB.candidateState = CandidateState.ACTIVE;
+        candB.dob = LocalDate.of(2003, 1, 1);
+        candB.employmentType = EmploymentType.UNEMPLOYED;
+        candB.qualification = Qualification.BACHELORS;
+        candB.locationType = LocationType.URBAN;
+        candB.state = "Karnataka";
+        candB = profileRepo.save(candB);
+
+        CandidateAcademicRecord acadB = new CandidateAcademicRecord();
+        acadB.candidateId = candB.id;
+        acadB.enrollmentStatus = EnrollmentStatus.ENROLLED_FULL_TIME;
+        acadB.finalYearStatus = FinalYearStatus.VERIFIED_FINAL_YEAR;
+        acadRepo.save(acadB);
+
+        AllocationService.StartRunRequest req = new AllocationService.StartRunRequest(
+                "balanced", null, false, 0, "v2",
+                EligibilityEvaluator.RULESET_PMIS_2026_DEMO, "1.0.0");
+        AllocationRun run = allocationService.prepareRun(req, null, null, adminUser);
+
+        // Simulate interrupted state: only Candidate A has a snapshot in the database
+        AllocationEligibilitySnapshot snapA = new AllocationEligibilitySnapshot();
+        snapA.runId = run.id;
+        snapA.candidateId = candA.id;
+        snapA.decision = EligibilityDecision.ELIGIBLE;
+        snapA.reasonCodesJson = "[\"ELIGIBLE\"]";
+        snapA = eligSnapshotRepo.save(snapA);
+
+        // Precondition: exactly 1 snapshot exists (partial set)
+        assertEquals(1, eligSnapshotRepo.findByRunId(run.id).size());
+
+        // Between attempts: Candidate B's evidence changes (e.g. verified NOC is uploaded)
+        CandidateEvidence nocB = new CandidateEvidence();
+        nocB.candidateId = candB.id;
+        nocB.evidenceType = "INSTITUTIONAL_NOC";
+        nocB.documentReference = "NOC-B-VERIFIED.pdf";
+        nocB.signatoryRole = SignatoryRole.DEAN;
+        nocB.verificationStatus = EvidenceStatus.VERIFIED;
+        nocB.declaresNoAcademicConflict = true;
+        nocB.validFrom = LocalDate.of(2025, 1, 1);
+        nocB.validUntil = LocalDate.of(2027, 1, 1);
+        evidRepo.save(nocB);
+
+        // Candidate A's evidence and decision remain completely unchanged
+        reset(aiClient);
+
+        // Replay attempt on the existing run: must fail closed before optimizer invocation
+        invokeExecute(run.id);
+
+        // 1. Zero optimizer invocations
+        verify(aiClient, never()).optimize(any());
+
+        // 2. No new snapshots filled from current live data
+        List<AllocationEligibilitySnapshot> snapshotsAfter = eligSnapshotRepo.findByRunId(run.id);
+        assertEquals(1, snapshotsAfter.size(),
+                "Must NOT fill missing snapshots for Candidate B; snapshot count must remain 1");
+
+        // 3. Candidate A snapshot preserved exactly
+        AllocationEligibilitySnapshot snapAAfter = snapshotsAfter.get(0);
+        assertEquals(snapA.id, snapAAfter.id);
+        assertEquals(candA.id, snapAAfter.candidateId);
+        assertEquals(EligibilityDecision.ELIGIBLE, snapAAfter.decision);
+
+        // 4. Run marked FAILED with controlled non-sensitive error message
+        AllocationRun failedRun = runRepo.findById(run.id).orElseThrow();
+        assertEquals(RunStatus.FAILED, failedRun.status);
+        assertEquals(AllocationService.ERROR_UNSAFE_RETRY, failedRun.errorMessage);
+
+        // 5. No assignments created
+        assertEquals(0, assignmentRepo.countByRunIdAndSource(run.id, AssignmentSource.GLOBAL),
+                "No assignments must be created on rejected retry");
+    }
+
+    // ------------------------------------------------------------------
+    // Security & OWASP: Controlled error messages without information leakage
+    // ------------------------------------------------------------------
+    @Test
+    @DisplayName("Security: Unsafe retry persists controlled message without internal details")
+    void testGate3_persistedErrorMessage_restrictedAndNonSensitive() throws Exception {
+        AllocationService.StartRunRequest req = new AllocationService.StartRunRequest(
+                "balanced", null, false, 0, "v2",
+                EligibilityEvaluator.RULESET_PMIS_2026_DEMO, "1.0.0");
+        AllocationRun run = allocationService.prepareRun(req, null, null, adminUser);
+
+        // Attempt 1 creates decision snapshot ledger
+        invokeExecute(run.id);
+
+        // Attempt 2 (unsafe retry)
+        reset(aiClient);
+        invokeExecute(run.id);
+
+        AllocationRun failedRun = runRepo.findById(run.id).orElseThrow();
+        assertEquals(RunStatus.FAILED, failedRun.status);
+
+        String error = failedRun.errorMessage;
+        assertNotNull(error);
+        assertEquals(AllocationService.ERROR_UNSAFE_RETRY, error);
+
+        // Ensure no internal database, stack trace, class name, or sensitive tokens leaked
+        assertFalse(error.contains("Exception"), "Must not expose Java exception names");
+        assertFalse(error.contains("allocation_eligibility_snapshots"), "Must not expose DB table names");
+        assertFalse(error.contains("SELECT") || error.contains("INSERT"), "Must not expose SQL fragments");
+        assertFalse(error.contains(".pdf"), "Must not expose document references");
+        assertFalse(error.contains("pragati"), "Must not expose internal package names");
     }
 }
