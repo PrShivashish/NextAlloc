@@ -29,6 +29,9 @@ public class CandidateProfile {
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     public CandidateStatus candidateStatus;
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    public EmploymentType employmentType = EmploymentType.UNKNOWN;
     @Column(length = 60)
     public String state;
     @Column(length = 60)

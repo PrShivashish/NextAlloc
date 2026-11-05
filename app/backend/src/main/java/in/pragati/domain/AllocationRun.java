@@ -33,6 +33,10 @@ public class AllocationRun {
     public String policyKey;
     @Column(nullable = false, length = 20)
     public String policyVersion;
+    @Column(name = "eligibility_ruleset_id", nullable = false, length = 50)
+    public String eligibilityRuleSetId = "prototype-legacy-v1";
+    @Column(name = "eligibility_ruleset_version", nullable = false, length = 30)
+    public String eligibilityRuleSetVersion = "1.0.0";
     @Column(nullable = false, length = 500)
     public String weightsJson;
     @Column(nullable = false)
