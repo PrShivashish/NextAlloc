@@ -10,6 +10,7 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(name = "candidate_evidences",
+       uniqueConstraints = {@UniqueConstraint(name = "uq_cand_evid_composite", columnNames = {"id", "candidateId", "evidenceType"})},
        indexes = {@Index(name = "idx_evid_candidate_type", columnList = "candidateId, evidenceType"),
                   @Index(name = "idx_evid_status", columnList = "verificationStatus")})
 public class CandidateEvidence {

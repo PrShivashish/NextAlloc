@@ -377,11 +377,15 @@ class EligibilityDataFoundationTest {
                     assertTrue(rs.next());
                     assertEquals(0, rs.getInt(1), "New allocation_eligibility_snapshots table should be empty");
                 }
+                try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM candidate_evidence_current")) {
+                    assertTrue(rs.next());
+                    assertEquals(0, rs.getInt(1), "New candidate_evidence_current table should be empty");
+                }
             }
 
             // Step 5: Assert Flyway Schema History table state
             MigrationInfo[] history = controlledFlyway.info().applied();
-            assertEquals(2, history.length, "Flyway schema history must have 2 entries (Baseline + V2)");
+            assertEquals(3, history.length, "Flyway schema history must have 3 entries (Baseline + V2 + V3)");
             assertEquals("1", history[0].getVersion().getVersion());
             assertEquals("baseline schema", history[0].getDescription());
             assertEquals("BASELINE", history[0].getType().name());
@@ -390,6 +394,11 @@ class EligibilityDataFoundationTest {
             assertEquals("phase4a2 eligibility foundation", history[1].getDescription());
             assertEquals("SQL", history[1].getType().name());
             assertTrue(history[1].getState().isApplied());
+
+            assertEquals("3", history[2].getVersion().getVersion());
+            assertEquals("phase4a2c noc current submission", history[2].getDescription());
+            assertEquals("SQL", history[2].getType().name());
+            assertTrue(history[2].getState().isApplied());
 
             // Step 6: Verify Idempotence — calling migrate again does nothing
             int subsequentMigrations = controlledFlyway.migrate().migrationsExecuted;

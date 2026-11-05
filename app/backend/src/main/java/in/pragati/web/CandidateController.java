@@ -1,18 +1,28 @@
 package in.pragati.web;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import in.pragati.domain.enums.Sector;
+import in.pragati.domain.enums.SignatoryRole;
 import in.pragati.security.AuthUser;
 import in.pragati.service.CandidateService;
+import in.pragati.service.EvidenceService;
 import in.pragati.service.ReadinessService;
+import in.pragati.web.dto.NocEvidenceDto;
+import in.pragati.web.dto.NocSubmissionInput;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,9 +34,11 @@ import jakarta.validation.Valid;
 public class CandidateController {
 
     private final CandidateService candidateService;
+    private final EvidenceService evidenceService;
 
-    public CandidateController(CandidateService candidateService) {
+    public CandidateController(CandidateService candidateService, EvidenceService evidenceService) {
         this.candidateService = candidateService;
+        this.evidenceService = evidenceService;
     }
 
     @GetMapping("/me/profile")
@@ -137,6 +149,64 @@ public class CandidateController {
                                                                @RequestParam(defaultValue = "0") int page,
                                                                @RequestParam(defaultValue = "10") int size) {
         return candidateService.myEligibility(me, page, size);
+    }
+
+    // ------------------------------------------------------------------
+    // Phase 4A-2C: Institutional NOC Evidence
+    // ------------------------------------------------------------------
+
+    @PostMapping(value = "/me/evidence/noc", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Submit institutional NOC (PDF max 5 MB) with verified metadata.")
+    public NocEvidenceDto uploadNoc(
+            @AuthenticationPrincipal AuthUser me,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("issuingInstitution") String issuingInstitution,
+            @RequestParam("signatoryRole") SignatoryRole signatoryRole,
+            @RequestParam("signatoryName") String signatoryName,
+            @RequestParam("signatoryEmail") String signatoryEmail,
+            @RequestParam(name = "declaresNoAcademicConflict", defaultValue = "false") boolean declaresNoAcademicConflict,
+            @RequestParam(name = "validFrom", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validFrom,
+            @RequestParam(name = "validUntil", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validUntil) throws IOException {
+
+        NocSubmissionInput input = new NocSubmissionInput(
+                issuingInstitution,
+                signatoryRole,
+                signatoryName,
+                signatoryEmail,
+                declaresNoAcademicConflict,
+                validFrom,
+                validUntil
+        );
+        return evidenceService.submitNoc(me, file, input);
+    }
+
+    @GetMapping("/me/evidence/noc")
+    @Operation(summary = "Get active institutional NOC verification status.")
+    public NocEvidenceDto getActiveNoc(@AuthenticationPrincipal AuthUser me) {
+        return evidenceService.getActiveNoc(me);
+    }
+
+    @GetMapping(value = "/me/evidence/noc/download", produces = MediaType.APPLICATION_PDF_VALUE)
+    @Operation(summary = "Download active submitted institutional NOC.")
+    public ResponseEntity<Resource> downloadActiveNoc(@AuthenticationPrincipal AuthUser me) {
+        Resource res = evidenceService.downloadMyNoc(me, null);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + res.getFilename() + "\"")
+                .header("X-Content-Type-Options", "nosniff")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(res);
+    }
+
+    @GetMapping(value = "/me/evidence/noc/{id}/download", produces = MediaType.APPLICATION_PDF_VALUE)
+    @Operation(summary = "Download specific historical institutional NOC submitted by caller.")
+    public ResponseEntity<Resource> downloadNocById(@AuthenticationPrincipal AuthUser me,
+                                                    @PathVariable("id") Long id) {
+        Resource res = evidenceService.downloadMyNoc(me, id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + res.getFilename() + "\"")
+                .header("X-Content-Type-Options", "nosniff")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(res);
     }
 
     @GetMapping("/me/dashboard")

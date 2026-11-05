@@ -21,6 +21,10 @@ import in.pragati.domain.enums.*;
 import in.pragati.repo.*;
 import in.pragati.security.AuthUser;
 import in.pragati.service.*;
+import in.pragati.service.EvidenceService;
+import in.pragati.web.dto.NocReviewDecisionInput;
+import in.pragati.web.dto.NocReviewQueueItemDto;
+import org.springframework.core.io.Resource;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -98,6 +102,7 @@ public class AdminController {
     private final OpportunityRepository opportunities;
     private final AuditEventRepository auditEvents;
     private final SimulationRunRepository simulations;
+    private final EvidenceService evidenceService;
     private final ObjectMapper json;
 
     public AdminController(OverviewService overview, ScenarioService scenarios,
@@ -109,14 +114,16 @@ public class AdminController {
                            AssignmentRepository assignments, GroupMetricRepository groupMetrics,
                            GeoMetricRepository geoMetrics, ConflictMetricRepository conflicts,
                            OpportunityRepository opportunities, AuditEventRepository auditEvents,
-                           SimulationRunRepository simulations, ObjectMapper json) {
+                           SimulationRunRepository simulations, EvidenceService evidenceService,
+                           ObjectMapper json) {
         this.overview = overview; this.scenarios = scenarios; this.allocation = allocation;
         this.comparison = comparison; this.policy = policy; this.reallocation = reallocation;
         this.dataQuality = dataQuality; this.audit = audit; this.judge = judge;
         this.technical = technical; this.report = report; this.snapshots = snapshots;
         this.runs = runs; this.assignments = assignments; this.groupMetrics = groupMetrics;
         this.geoMetrics = geoMetrics; this.conflicts = conflicts; this.opportunities = opportunities;
-        this.auditEvents = auditEvents; this.simulations = simulations; this.json = json;
+        this.auditEvents = auditEvents; this.simulations = simulations; this.evidenceService = evidenceService;
+        this.json = json;
     }
 
     // ---- Command center ----
@@ -479,6 +486,61 @@ public class AdminController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=pragati-allocation-report-" + id + ".pdf")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(pdf);
+    }
+
+    // ------------------------------------------------------------------
+    // Phase 4A-2C: Institutional NOC Verification Dashboard
+    // ------------------------------------------------------------------
+
+    @GetMapping("/evidence/noc/pending")
+    @Operation(summary = "Get paginated queue of submitted institutional NOC documents pending review.")
+    public Page<NocReviewQueueItemDto> pendingNocs(@AuthenticationPrincipal AuthUser me,
+                                                   @RequestParam(defaultValue = "0") int page,
+                                                   @RequestParam(defaultValue = "20") int size) {
+        return evidenceService.getPendingQueue(me, PageRequest.of(page, size));
+    }
+
+    @GetMapping("/evidence/noc/{id}")
+    @Operation(summary = "Get institutional NOC evidence detail with candidate academic context.")
+    public NocReviewQueueItemDto getNocDetail(@AuthenticationPrincipal AuthUser me,
+                                              @PathVariable("id") Long id) {
+        return evidenceService.getEvidenceDetail(me, id);
+    }
+
+    @GetMapping(value = "/evidence/noc/{id}/download", produces = MediaType.APPLICATION_PDF_VALUE)
+    @Operation(summary = "Download institutional NOC evidence document for review.")
+    public ResponseEntity<Resource> downloadNocAdmin(@AuthenticationPrincipal AuthUser me,
+                                                     @PathVariable("id") Long id) {
+        Resource res = evidenceService.downloadEvidenceForAdmin(me, id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + res.getFilename() + "\"")
+                .header("X-Content-Type-Options", "nosniff")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(res);
+    }
+
+    @PostMapping("/evidence/noc/{id}/verify")
+    @Operation(summary = "Verify and approve institutional NOC evidence with OCC and audit trail.")
+    public NocReviewQueueItemDto verifyNoc(@AuthenticationPrincipal AuthUser me,
+                                           @PathVariable("id") Long id,
+                                           @RequestBody(required = false) NocReviewDecisionInput decision) {
+        return evidenceService.verifyNoc(me, id, decision);
+    }
+
+    @PostMapping("/evidence/noc/{id}/reject")
+    @Operation(summary = "Reject institutional NOC evidence with specific reason code and audit trail.")
+    public NocReviewQueueItemDto rejectNoc(@AuthenticationPrincipal AuthUser me,
+                                           @PathVariable("id") Long id,
+                                           @RequestBody(required = false) NocReviewDecisionInput decision) {
+        return evidenceService.rejectNoc(me, id, decision);
+    }
+
+    @PostMapping("/evidence/noc/{id}/request-clarification")
+    @Operation(summary = "Request clarification on submitted institutional NOC with audit trail.")
+    public NocReviewQueueItemDto requestClarification(@AuthenticationPrincipal AuthUser me,
+                                                      @PathVariable("id") Long id,
+                                                      @RequestBody(required = false) NocReviewDecisionInput decision) {
+        return evidenceService.requestClarification(me, id, decision);
     }
 
 }
