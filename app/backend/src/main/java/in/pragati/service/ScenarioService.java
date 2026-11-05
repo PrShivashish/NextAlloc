@@ -11,7 +11,11 @@ import in.pragati.domain.DatasetSnapshot;
 import in.pragati.domain.enums.AuditAction;
 import in.pragati.domain.enums.RunStatus;
 import in.pragati.domain.enums.ScenarioKey;
+import in.pragati.repo.AllocationEligibilitySnapshotRepository;
 import in.pragati.repo.AllocationRunRepository;
+import in.pragati.repo.AssignmentRepository;
+import in.pragati.repo.CandidateAcademicRecordRepository;
+import in.pragati.repo.CandidateEvidenceRepository;
 import in.pragati.repo.DatasetSnapshotRepository;
 import in.pragati.security.AuthUser;
 import in.pragati.seed.ScenarioSeeder;
@@ -20,16 +24,44 @@ import in.pragati.seed.ScenarioSeeder;
 @Service
 public class ScenarioService {
 
+    public static final String ERROR_HISTORICAL_RUNS_PRESERVED =
+            "Cannot reload or reset demonstration scenarios while historical allocation runs exist. "
+            + "Allocation runs and assignments are immutable and preserved for audit. "
+            + "To test another scenario, launch an isolated demonstration instance or preserve the existing allocation history.";
+
+    public static final String ERROR_HISTORICAL_DECISIONS_PRESERVED =
+            "Cannot reload or reset demonstration scenarios while historical allocation eligibility snapshots exist. "
+            + "Eligibility decision records are immutable and protected by referential integrity. "
+            + "To test another scenario, launch an isolated demonstration instance or preserve the existing decision ledger.";
+
+    public static final String ERROR_CANDIDATE_EVIDENCE_PRESERVED =
+            "Cannot reload or reset demonstration scenarios while applicant academic or NOC evidence exists. "
+            + "Candidate-submitted records must not be deleted or orphaned. "
+            + "To test another scenario, launch an isolated demonstration instance or preserve applicant records.";
+
     private final ScenarioSeeder seeder;
     private final DatasetSnapshotRepository snapshots;
     private final AllocationRunRepository runs;
+    private final AllocationEligibilitySnapshotRepository eligSnapshots;
+    private final AssignmentRepository assignments;
+    private final CandidateEvidenceRepository candidateEvidences;
+    private final CandidateAcademicRecordRepository candidateAcademicRecords;
     private final AuditService audit;
 
     public ScenarioService(ScenarioSeeder seeder, DatasetSnapshotRepository snapshots,
-                           AllocationRunRepository runs, AuditService audit) {
+                           AllocationRunRepository runs,
+                           AllocationEligibilitySnapshotRepository eligSnapshots,
+                           AssignmentRepository assignments,
+                           CandidateEvidenceRepository candidateEvidences,
+                           CandidateAcademicRecordRepository candidateAcademicRecords,
+                           AuditService audit) {
         this.seeder = seeder;
         this.snapshots = snapshots;
         this.runs = runs;
+        this.eligSnapshots = eligSnapshots;
+        this.assignments = assignments;
+        this.candidateEvidences = candidateEvidences;
+        this.candidateAcademicRecords = candidateAcademicRecords;
         this.audit = audit;
     }
 
@@ -42,6 +74,19 @@ public class ScenarioService {
         long active = runs.findAllByStatusIn(java.util.List.of(RunStatus.QUEUED, RunStatus.RUNNING)).size();
         if (active > 0) {
             throw ApiException.conflict("An allocation is already in progress. Wait for it to finish before changing the scenario.");
+        }
+    }
+
+    public void ensureSafeToReset() {
+        ensureNoActiveRun();
+        if (eligSnapshots.count() > 0) {
+            throw ApiException.conflict(ERROR_HISTORICAL_DECISIONS_PRESERVED);
+        }
+        if (runs.count() > 0 || assignments.count() > 0) {
+            throw ApiException.conflict(ERROR_HISTORICAL_RUNS_PRESERVED);
+        }
+        if (candidateEvidences.count() > 0 || candidateAcademicRecords.count() > 0) {
+            throw ApiException.conflict(ERROR_CANDIDATE_EVIDENCE_PRESERVED);
         }
     }
 
@@ -62,7 +107,7 @@ public class ScenarioService {
 
     @Transactional
     public DatasetSnapshot load(ScenarioKey key, AuthUser actor) {
-        ensureNoActiveRun();
+        ensureSafeToReset();
         seeder.reset();
         DatasetSnapshot snapshot = seeder.seed(key);
         audit.log(actor, AuditAction.SCENARIO_LOADED, "Scenario", key.name(),
