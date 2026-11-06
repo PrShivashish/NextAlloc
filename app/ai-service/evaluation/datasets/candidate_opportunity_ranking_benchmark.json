@@ -1,0 +1,668 @@
+{
+  "metadata": {
+    "benchmark_name": "NextAlloc Candidate-Internship Ranking & Matching Benchmark",
+    "version": "1.1.0",
+    "created_at": "2026-11-06T14:45:00Z",
+    "description": "Multi-sector offline ranking benchmark explicitly decoupling Occupational Relevance, Policy Eligibility, and System Recognition.",
+    "provenance_disclaimer": "Relevance labels are synthetic engineering benchmark contracts derived from domain job descriptions and NextAlloc policy rules, NOT subjective human committee annotations.",
+    "relevance_scale": {
+      "3": "Highly Relevant (Strong domain fit, occupational competence, or exact skills)",
+      "2": "Moderately Relevant (Related domain, partial skills, or transferable tools)",
+      "1": "Marginally Relevant (Peripheral background, general analytical skills)",
+      "0": "Irrelevant (Unrelated domain, non-occupational hobbies, or zero domain overlap)"
+    },
+    "classification_categories": {
+      "RECOGNIZED_ELIGIBLE_MATCH": "Candidate is occupationally relevant, meets policy rules, and system taxonomy recognizes skills.",
+      "SYSTEM_COVERAGE_DEFICIT": "Candidate is occupationally relevant and policy-eligible, but excluded because NextAlloc prototype taxonomy lacks their trade/sector skills.",
+      "HARD_POLICY_EXCLUSION": "Candidate has occupational skills, but is disqualified by mandatory policy rules (withdrawn, degree rank deficit, missing NOC).",
+      "GENUINE_IRRELEVANCE": "Candidate lacks relevant occupational background and fails skill requirements."
+    },
+    "splits": {
+      "validation": {
+        "candidate_count": 10,
+        "opportunity_count": 6,
+        "ranking_queries": 6
+      },
+      "held_out_test": {
+        "candidate_count": 10,
+        "opportunity_count": 6,
+        "ranking_queries": 6
+      }
+    }
+  },
+  "opportunities": [
+    {
+      "id": "OPP-01",
+      "split": "validation",
+      "title": "Cloud Infrastructure & Backend Engineer",
+      "sector": "SOFTWARE_IT",
+      "state": "Delhi",
+      "capacity": 3,
+      "minQualificationRank": 2,
+      "minQualification": "BACHELORS",
+      "requirements": [
+        {"skill": "Python", "mandatory": true},
+        {"skill": "Cloud Computing", "mandatory": false},
+        {"skill": "DevOps", "mandatory": false}
+      ]
+    },
+    {
+      "id": "OPP-02",
+      "split": "validation",
+      "title": "Frontend & Mobile Application Developer",
+      "sector": "SOFTWARE_IT",
+      "state": "Maharashtra",
+      "capacity": 2,
+      "minQualificationRank": 2,
+      "minQualification": "BACHELORS",
+      "requirements": [
+        {"skill": "Web Development", "mandatory": true},
+        {"skill": "React", "mandatory": false},
+        {"skill": "UI/UX Design", "mandatory": false}
+      ]
+    },
+    {
+      "id": "OPP-03",
+      "split": "validation",
+      "title": "Enterprise Data Analyst & BI Specialist",
+      "sector": "DATA_ANALYTICS",
+      "state": "Karnataka",
+      "capacity": 4,
+      "minQualificationRank": 2,
+      "minQualification": "BACHELORS",
+      "requirements": [
+        {"skill": "SQL", "mandatory": true},
+        {"skill": "Data Analysis", "mandatory": false},
+        {"skill": "Power BI", "mandatory": false}
+      ]
+    },
+    {
+      "id": "OPP-04",
+      "split": "validation",
+      "title": "Machine Learning & AI Research Intern",
+      "sector": "DATA_ANALYTICS",
+      "state": "Delhi",
+      "capacity": 2,
+      "minQualificationRank": 3,
+      "minQualification": "POST_GRADUATE",
+      "requirements": [
+        {"skill": "Python", "mandatory": true},
+        {"skill": "Machine Learning", "mandatory": true},
+        {"skill": "Deep Learning", "mandatory": false},
+        {"skill": "Statistics", "mandatory": false}
+      ]
+    },
+    {
+      "id": "OPP-05",
+      "split": "validation",
+      "title": "Precision Manufacturing Operations Intern",
+      "sector": "MANUFACTURING_OPERATIONS",
+      "state": "Gujarat",
+      "capacity": 2,
+      "minQualificationRank": 1,
+      "minQualification": "HIGHER_SECONDARY",
+      "requirements": [
+        {"skill": "Operations", "mandatory": true},
+        {"skill": "Project Management", "mandatory": false}
+      ]
+    },
+    {
+      "id": "OPP-06",
+      "split": "validation",
+      "title": "Industrial Production Quality Trainee",
+      "sector": "MANUFACTURING_OPERATIONS",
+      "state": "Haryana",
+      "capacity": 3,
+      "minQualificationRank": 2,
+      "minQualification": "BACHELORS",
+      "requirements": [
+        {"skill": "Operations", "mandatory": true},
+        {"skill": "Statistics", "mandatory": false}
+      ]
+    },
+    {
+      "id": "OPP-07",
+      "split": "held_out_test",
+      "title": "Food Processing & Sanitation Specialist",
+      "sector": "MANUFACTURING_OPERATIONS",
+      "state": "West Bengal",
+      "capacity": 2,
+      "minQualificationRank": 2,
+      "minQualification": "BACHELORS",
+      "requirements": [
+        {"skill": "Operations", "mandatory": true},
+        {"skill": "Environmental Science", "mandatory": false}
+      ]
+    },
+    {
+      "id": "OPP-08",
+      "split": "held_out_test",
+      "title": "Dairy Bioprocessing & Quality Assurance Intern",
+      "sector": "HEALTHCARE_BIOTECH",
+      "state": "Gujarat",
+      "capacity": 2,
+      "minQualificationRank": 2,
+      "minQualification": "BACHELORS",
+      "requirements": [
+        {"skill": "Research", "mandatory": true},
+        {"skill": "Operations", "mandatory": false}
+      ]
+    },
+    {
+      "id": "OPP-09",
+      "split": "held_out_test",
+      "title": "Sustainable Agronomy & Soil Analytics Intern",
+      "sector": "ENVIRONMENTAL_ENERGY",
+      "state": "Madhya Pradesh",
+      "capacity": 2,
+      "minQualificationRank": 2,
+      "minQualification": "BACHELORS",
+      "requirements": [
+        {"skill": "Environmental Science", "mandatory": true},
+        {"skill": "Data Analysis", "mandatory": false}
+      ]
+    },
+    {
+      "id": "OPP-10",
+      "split": "held_out_test",
+      "title": "Rural Agricultural Supply Chain Specialist",
+      "sector": "MANUFACTURING_OPERATIONS",
+      "state": "Punjab",
+      "capacity": 3,
+      "minQualificationRank": 2,
+      "minQualification": "BACHELORS",
+      "requirements": [
+        {"skill": "Supply Chain", "mandatory": true},
+        {"skill": "Operations", "mandatory": false}
+      ]
+    },
+    {
+      "id": "OPP-11",
+      "split": "held_out_test",
+      "title": "Corporate Financial Audit Associate",
+      "sector": "FINANCE_BANKING",
+      "state": "Maharashtra",
+      "capacity": 3,
+      "minQualificationRank": 2,
+      "minQualification": "BACHELORS",
+      "requirements": [
+        {"skill": "Accounting", "mandatory": true},
+        {"skill": "Finance", "mandatory": false},
+        {"skill": "Excel", "mandatory": false}
+      ]
+    },
+    {
+      "id": "OPP-12",
+      "split": "held_out_test",
+      "title": "Healthcare Informatics & Clinical Analytics Intern",
+      "sector": "HEALTHCARE_BIOTECH",
+      "state": "Tamil Nadu",
+      "capacity": 2,
+      "minQualificationRank": 2,
+      "minQualification": "BACHELORS",
+      "requirements": [
+        {"skill": "Healthcare Data", "mandatory": true},
+        {"skill": "SQL", "mandatory": false},
+        {"skill": "Statistics", "mandatory": false}
+      ]
+    }
+  ],
+  "candidates": [
+    {
+      "id": "CAND-01",
+      "split": "validation",
+      "name": "Aditya Sharma",
+      "state": "Delhi",
+      "qualification": "BACHELORS",
+      "qualificationRank": 2,
+      "candidateState": "ACTIVE",
+      "experienceYears": 1.0,
+      "candidateStatus": "STUDENT",
+      "skills": ["Python", "Cloud Computing", "DevOps"],
+      "interests": ["SOFTWARE_IT", "DATA_ANALYTICS"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-02",
+      "split": "validation",
+      "name": "Bhavna Patel",
+      "state": "Maharashtra",
+      "qualification": "BACHELORS",
+      "qualificationRank": 2,
+      "candidateState": "ACTIVE",
+      "experienceYears": 0.5,
+      "candidateStatus": "STUDENT",
+      "skills": ["Web Development", "React", "UI/UX Design"],
+      "interests": ["SOFTWARE_IT", "DESIGN_MEDIA"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-03",
+      "split": "validation",
+      "name": "Chirag Verma (Tool Specialist - PyTorch Only)",
+      "state": "Delhi",
+      "qualification": "POST_GRADUATE",
+      "qualificationRank": 3,
+      "candidateState": "ACTIVE",
+      "experienceYears": 1.5,
+      "candidateStatus": "STUDENT",
+      "skills": ["Machine Learning"],
+      "rawSkillMentions": ["PyTorch", "TensorFlow"],
+      "interests": ["DATA_ANALYTICS"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-04",
+      "split": "validation",
+      "name": "Divya Reddy (DevOps Tool Specialist - K8s Only)",
+      "state": "Karnataka",
+      "qualification": "BACHELORS",
+      "qualificationRank": 2,
+      "candidateState": "ACTIVE",
+      "experienceYears": 1.0,
+      "candidateStatus": "STUDENT",
+      "skills": ["Python"],
+      "rawSkillMentions": ["k8s", "ci/cd"],
+      "interests": ["SOFTWARE_IT"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-05",
+      "split": "validation",
+      "name": "Esha Gupta (Software Tool User - Tally Only)",
+      "state": "Maharashtra",
+      "qualification": "BACHELORS",
+      "qualificationRank": 2,
+      "candidateState": "ACTIVE",
+      "experienceYears": 0.0,
+      "candidateStatus": "STUDENT",
+      "skills": ["Finance"],
+      "rawSkillMentions": ["Tally"],
+      "interests": ["FINANCE_BANKING"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-06",
+      "split": "validation",
+      "name": "Farhan Ali (Missing Mandatory Skill)",
+      "state": "Delhi",
+      "qualification": "BACHELORS",
+      "qualificationRank": 2,
+      "candidateState": "ACTIVE",
+      "experienceYears": 2.0,
+      "candidateStatus": "WORKING",
+      "skills": ["Cloud Computing", "DevOps"],
+      "interests": ["SOFTWARE_IT"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-07",
+      "split": "validation",
+      "name": "Gaurav Joshi (Hard Ineligibility: Withdrawn)",
+      "state": "Delhi",
+      "qualification": "POST_GRADUATE",
+      "qualificationRank": 3,
+      "candidateState": "WITHDRAWN",
+      "experienceYears": 2.0,
+      "candidateStatus": "STUDENT",
+      "skills": ["Python", "Machine Learning", "Deep Learning", "Statistics"],
+      "interests": ["DATA_ANALYTICS"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-08",
+      "split": "validation",
+      "name": "Harshini Nair (Degree Qualification Deficit)",
+      "state": "Delhi",
+      "qualification": "HIGHER_SECONDARY",
+      "qualificationRank": 1,
+      "candidateState": "ACTIVE",
+      "experienceYears": 0.0,
+      "candidateStatus": "STUDENT",
+      "skills": ["Python", "Machine Learning", "Deep Learning"],
+      "interests": ["DATA_ANALYTICS"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-09",
+      "split": "validation",
+      "name": "Ishan Sen (Data Analytics Specialist)",
+      "state": "Karnataka",
+      "qualification": "BACHELORS",
+      "qualificationRank": 2,
+      "candidateState": "ACTIVE",
+      "experienceYears": 1.0,
+      "candidateStatus": "STUDENT",
+      "skills": ["SQL", "Data Analysis", "Power BI"],
+      "interests": ["DATA_ANALYTICS"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-10",
+      "split": "validation",
+      "name": "Jyoti Rao (Manufacturing Operations Assistant)",
+      "state": "Gujarat",
+      "qualification": "BACHELORS",
+      "qualificationRank": 2,
+      "candidateState": "ACTIVE",
+      "experienceYears": 1.0,
+      "candidateStatus": "STUDENT",
+      "skills": ["Operations", "Project Management"],
+      "interests": ["MANUFACTURING_OPERATIONS"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-11",
+      "split": "held_out_test",
+      "name": "Karan Mehra (Manufacturing Trade Skill: Welding)",
+      "state": "Gujarat",
+      "qualification": "HIGHER_SECONDARY",
+      "qualificationRank": 1,
+      "candidateState": "ACTIVE",
+      "experienceYears": 2.0,
+      "candidateStatus": "WORKING",
+      "skills": [],
+      "rawSkillMentions": ["Welding", "CNC machining"],
+      "interests": ["MANUFACTURING_OPERATIONS"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-12",
+      "split": "held_out_test",
+      "name": "Leela Das (Food Processing Trade Skill: Baking)",
+      "state": "West Bengal",
+      "qualification": "BACHELORS",
+      "qualificationRank": 2,
+      "candidateState": "ACTIVE",
+      "experienceYears": 1.0,
+      "candidateStatus": "STUDENT",
+      "skills": [],
+      "rawSkillMentions": ["Baking", "Food safety"],
+      "interests": ["MANUFACTURING_OPERATIONS"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-13",
+      "split": "held_out_test",
+      "name": "Manish Kulkarni (Agriculture Specialist: Crop Agronomy)",
+      "state": "Madhya Pradesh",
+      "qualification": "BACHELORS",
+      "qualificationRank": 2,
+      "candidateState": "ACTIVE",
+      "experienceYears": 1.0,
+      "candidateStatus": "STUDENT",
+      "skills": ["Data Analysis"],
+      "rawSkillMentions": ["Crop agronomy", "Soil testing"],
+      "interests": ["ENVIRONMENTAL_ENERGY"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-14",
+      "split": "held_out_test",
+      "name": "Nidhi Bhat (Horticulture & Sports Skill Applicant)",
+      "state": "Karnataka",
+      "qualification": "BACHELORS",
+      "qualificationRank": 2,
+      "candidateState": "ACTIVE",
+      "experienceYears": 0.5,
+      "candidateStatus": "STUDENT",
+      "skills": [],
+      "rawSkillMentions": ["Gardening", "Cricket"],
+      "interests": ["ENVIRONMENTAL_ENERGY"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-15",
+      "split": "held_out_test",
+      "name": "Omkar Deshmukh (Composite Label: C/C++)",
+      "state": "Maharashtra",
+      "qualification": "BACHELORS",
+      "qualificationRank": 2,
+      "candidateState": "ACTIVE",
+      "experienceYears": 1.0,
+      "candidateStatus": "STUDENT",
+      "skills": ["Web Development"],
+      "rawSkillMentions": ["C/C++"],
+      "interests": ["SOFTWARE_IT"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-16",
+      "split": "held_out_test",
+      "name": "Pooja Hegde (Full-Stack Web Engineer)",
+      "state": "Maharashtra",
+      "qualification": "BACHELORS",
+      "qualificationRank": 2,
+      "candidateState": "ACTIVE",
+      "experienceYears": 1.5,
+      "candidateStatus": "STUDENT",
+      "skills": ["Web Development", "React"],
+      "interests": ["SOFTWARE_IT"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-17",
+      "split": "held_out_test",
+      "name": "Qasim Sheikh (Accounting & Finance Professional)",
+      "state": "Maharashtra",
+      "qualification": "BACHELORS",
+      "qualificationRank": 2,
+      "candidateState": "ACTIVE",
+      "experienceYears": 1.0,
+      "candidateStatus": "STUDENT",
+      "skills": ["Accounting", "Finance", "Excel"],
+      "interests": ["FINANCE_BANKING"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-18",
+      "split": "held_out_test",
+      "name": "Ritu Sengupta (Healthcare Informatics Specialist)",
+      "state": "Tamil Nadu",
+      "qualification": "BACHELORS",
+      "qualificationRank": 2,
+      "candidateState": "ACTIVE",
+      "experienceYears": 1.0,
+      "candidateStatus": "STUDENT",
+      "skills": ["Healthcare Data", "SQL", "Statistics"],
+      "interests": ["HEALTHCARE_BIOTECH"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-19",
+      "split": "held_out_test",
+      "name": "Samir Khan (Pure Hobby / Non-Work Applicant)",
+      "state": "Delhi",
+      "qualification": "BACHELORS",
+      "qualificationRank": 2,
+      "candidateState": "ACTIVE",
+      "experienceYears": 0.0,
+      "candidateStatus": "STUDENT",
+      "skills": [],
+      "rawSkillMentions": ["Piano", "Hiking", "Quantum flux"],
+      "interests": ["SOFTWARE_IT"],
+      "academicVerified": true,
+      "nocVerified": true
+    },
+    {
+      "id": "CAND-20",
+      "split": "held_out_test",
+      "name": "Tanvi Pillai (Multi-Domain Quant & Analytics Engineer)",
+      "state": "Delhi",
+      "qualification": "POST_GRADUATE",
+      "qualificationRank": 3,
+      "candidateState": "ACTIVE",
+      "experienceYears": 2.0,
+      "candidateStatus": "WORKING",
+      "skills": ["Python", "Machine Learning", "SQL", "Data Analysis", "Deep Learning", "Statistics"],
+      "interests": ["DATA_ANALYTICS", "SOFTWARE_IT", "HEALTHCARE_BIOTECH"],
+      "academicVerified": true,
+      "nocVerified": true
+    }
+  ],
+  "ranking_queries": [
+    {
+      "case_id": "RANK-VAL-01",
+      "split": "validation",
+      "opportunity_id": "OPP-01",
+      "title": "Backend Ranking for OPP-01 (Python mandatory)",
+      "evaluations": [
+        {"candidate_id": "CAND-01", "occupational_relevance": 3, "policy_eligible": true, "system_recognized": true, "system_eligible": true, "category": "RECOGNIZED_ELIGIBLE_MATCH"},
+        {"candidate_id": "CAND-04", "occupational_relevance": 2, "policy_eligible": true, "system_recognized": true, "system_eligible": true, "category": "RECOGNIZED_ELIGIBLE_MATCH"},
+        {"candidate_id": "CAND-02", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Python skill"},
+        {"candidate_id": "CAND-03", "occupational_relevance": 1, "policy_eligible": true, "system_recognized": false, "system_eligible": false, "category": "SYSTEM_COVERAGE_DEFICIT", "exclusion_reason": "Has PyTorch/TensorFlow, but lacks recognized Python"},
+        {"candidate_id": "CAND-06", "occupational_relevance": 1, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Python skill"},
+        {"candidate_id": "CAND-07", "occupational_relevance": 3, "policy_eligible": false, "system_recognized": true, "system_eligible": false, "category": "HARD_POLICY_EXCLUSION", "exclusion_reason": "Participation withdrawn"}
+      ]
+    },
+    {
+      "case_id": "RANK-VAL-02",
+      "split": "validation",
+      "opportunity_id": "OPP-02",
+      "title": "Frontend Ranking for OPP-02 (Web Development mandatory)",
+      "evaluations": [
+        {"candidate_id": "CAND-02", "occupational_relevance": 3, "policy_eligible": true, "system_recognized": true, "system_eligible": true, "category": "RECOGNIZED_ELIGIBLE_MATCH"},
+        {"candidate_id": "CAND-01", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Web Development skill"},
+        {"candidate_id": "CAND-06", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Web Development skill"},
+        {"candidate_id": "CAND-09", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Web Development skill"}
+      ]
+    },
+    {
+      "case_id": "RANK-VAL-03",
+      "split": "validation",
+      "opportunity_id": "OPP-03",
+      "title": "BI Analytics Ranking for OPP-03 (SQL mandatory)",
+      "evaluations": [
+        {"candidate_id": "CAND-09", "occupational_relevance": 3, "policy_eligible": true, "system_recognized": true, "system_eligible": true, "category": "RECOGNIZED_ELIGIBLE_MATCH"},
+        {"candidate_id": "CAND-01", "occupational_relevance": 1, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory SQL skill"},
+        {"candidate_id": "CAND-05", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": false, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory SQL skill"},
+        {"candidate_id": "CAND-10", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory SQL skill"}
+      ]
+    },
+    {
+      "case_id": "RANK-VAL-04",
+      "split": "validation",
+      "opportunity_id": "OPP-04",
+      "title": "AI Research Ranking for OPP-04 (Python & ML mandatory, Post-Grad required)",
+      "evaluations": [
+        {"candidate_id": "CAND-07", "occupational_relevance": 3, "policy_eligible": false, "system_recognized": true, "system_eligible": false, "category": "HARD_POLICY_EXCLUSION", "exclusion_reason": "Participation withdrawn (despite 100% skill match)"},
+        {"candidate_id": "CAND-08", "occupational_relevance": 2, "policy_eligible": false, "system_recognized": true, "system_eligible": false, "category": "HARD_POLICY_EXCLUSION", "exclusion_reason": "Qualification rank below required Post-Graduate"},
+        {"candidate_id": "CAND-03", "occupational_relevance": 2, "policy_eligible": true, "system_recognized": false, "system_eligible": false, "category": "SYSTEM_COVERAGE_DEFICIT", "exclusion_reason": "Has PyTorch/TensorFlow, but lacks recognized Python canonical"},
+        {"candidate_id": "CAND-01", "occupational_relevance": 1, "policy_eligible": false, "system_recognized": true, "system_eligible": false, "category": "HARD_POLICY_EXCLUSION", "exclusion_reason": "Qualification rank deficit and missing ML mandatory skill"}
+      ]
+    },
+    {
+      "case_id": "RANK-VAL-05",
+      "split": "validation",
+      "opportunity_id": "OPP-05",
+      "title": "Manufacturing Operations Ranking for OPP-05 (Operations mandatory)",
+      "evaluations": [
+        {"candidate_id": "CAND-10", "occupational_relevance": 3, "policy_eligible": true, "system_recognized": true, "system_eligible": true, "category": "RECOGNIZED_ELIGIBLE_MATCH"},
+        {"candidate_id": "CAND-01", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Operations skill"},
+        {"candidate_id": "CAND-05", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": false, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Operations skill"},
+        {"candidate_id": "CAND-09", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Operations skill"}
+      ]
+    },
+    {
+      "case_id": "RANK-VAL-06",
+      "split": "validation",
+      "opportunity_id": "OPP-06",
+      "title": "Industrial Production Trainee for OPP-06 (Operations mandatory, Bachelors required)",
+      "evaluations": [
+        {"candidate_id": "CAND-10", "occupational_relevance": 3, "policy_eligible": true, "system_recognized": true, "system_eligible": true, "category": "RECOGNIZED_ELIGIBLE_MATCH"},
+        {"candidate_id": "CAND-02", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Operations skill"},
+        {"candidate_id": "CAND-08", "occupational_relevance": 0, "policy_eligible": false, "system_recognized": true, "system_eligible": false, "category": "HARD_POLICY_EXCLUSION", "exclusion_reason": "Degree rank below Bachelors and missing Operations skill"}
+      ]
+    },
+    {
+      "case_id": "RANK-HLD-01",
+      "split": "held_out_test",
+      "opportunity_id": "OPP-07",
+      "title": "Food Processing Quality Specialist for OPP-07 (Operations mandatory)",
+      "evaluations": [
+        {"candidate_id": "CAND-12", "occupational_relevance": 3, "policy_eligible": true, "system_recognized": false, "system_eligible": false, "category": "SYSTEM_COVERAGE_DEFICIT", "exclusion_reason": "Valid baking/food safety skills; excluded because NextAlloc taxonomy lacks food processing skills"},
+        {"candidate_id": "CAND-11", "occupational_relevance": 1, "policy_eligible": true, "system_recognized": false, "system_eligible": false, "category": "SYSTEM_COVERAGE_DEFICIT", "exclusion_reason": "Manufacturing trade skill; lacks Operations canonical"},
+        {"candidate_id": "CAND-16", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Operations skill"},
+        {"candidate_id": "CAND-20", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Operations skill"}
+      ]
+    },
+    {
+      "case_id": "RANK-HLD-02",
+      "split": "held_out_test",
+      "opportunity_id": "OPP-08",
+      "title": "Dairy Bioprocessing Intern for OPP-08 (Research mandatory)",
+      "evaluations": [
+        {"candidate_id": "CAND-12", "occupational_relevance": 2, "policy_eligible": true, "system_recognized": false, "system_eligible": false, "category": "SYSTEM_COVERAGE_DEFICIT", "exclusion_reason": "Food bioprocessing background; lacks Research canonical"},
+        {"candidate_id": "CAND-18", "occupational_relevance": 1, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Healthcare background; lacks Research canonical"},
+        {"candidate_id": "CAND-14", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": false, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Research skill"},
+        {"candidate_id": "CAND-19", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": false, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Hobby applicant (piano, hiking, quantum flux)"}
+      ]
+    },
+    {
+      "case_id": "RANK-HLD-03",
+      "split": "held_out_test",
+      "opportunity_id": "OPP-09",
+      "title": "Sustainable Agronomy Analytics for OPP-09 (Environmental Science mandatory)",
+      "evaluations": [
+        {"candidate_id": "CAND-13", "occupational_relevance": 3, "policy_eligible": true, "system_recognized": false, "system_eligible": false, "category": "SYSTEM_COVERAGE_DEFICIT", "exclusion_reason": "Valid agronomy/soil testing skills; excluded because NextAlloc taxonomy lacks agriculture skills"},
+        {"candidate_id": "CAND-14", "occupational_relevance": 1, "policy_eligible": true, "system_recognized": false, "system_eligible": false, "category": "SYSTEM_COVERAGE_DEFICIT", "exclusion_reason": "Horticulture skills; lacks Environmental Science canonical"},
+        {"candidate_id": "CAND-18", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Environmental Science skill"},
+        {"candidate_id": "CAND-20", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Environmental Science skill"}
+      ]
+    },
+    {
+      "case_id": "RANK-HLD-04",
+      "split": "held_out_test",
+      "opportunity_id": "OPP-10",
+      "title": "Rural Agricultural Supply Chain for OPP-10 (Supply Chain mandatory)",
+      "evaluations": [
+        {"candidate_id": "CAND-13", "occupational_relevance": 2, "policy_eligible": true, "system_recognized": false, "system_eligible": false, "category": "SYSTEM_COVERAGE_DEFICIT", "exclusion_reason": "Rural agriculture background; lacks Supply Chain canonical"},
+        {"candidate_id": "CAND-17", "occupational_relevance": 1, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Finance background; lacks Supply Chain canonical"},
+        {"candidate_id": "CAND-15", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": false, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Composite C/C++ label; lacks Supply Chain skill"},
+        {"candidate_id": "CAND-20", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Supply Chain skill"}
+      ]
+    },
+    {
+      "case_id": "RANK-HLD-05",
+      "split": "held_out_test",
+      "opportunity_id": "OPP-11",
+      "title": "Corporate Financial Audit for OPP-11 (Accounting mandatory)",
+      "evaluations": [
+        {"candidate_id": "CAND-17", "occupational_relevance": 3, "policy_eligible": true, "system_recognized": true, "system_eligible": true, "category": "RECOGNIZED_ELIGIBLE_MATCH"},
+        {"candidate_id": "CAND-16", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Accounting skill"},
+        {"candidate_id": "CAND-19", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": false, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Hobby applicant; missing Accounting skill"},
+        {"candidate_id": "CAND-20", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Accounting skill"}
+      ]
+    },
+    {
+      "case_id": "RANK-HLD-06",
+      "split": "held_out_test",
+      "opportunity_id": "OPP-12",
+      "title": "Healthcare Clinical Analytics for OPP-12 (Healthcare Data mandatory)",
+      "evaluations": [
+        {"candidate_id": "CAND-18", "occupational_relevance": 3, "policy_eligible": true, "system_recognized": true, "system_eligible": true, "category": "RECOGNIZED_ELIGIBLE_MATCH"},
+        {"candidate_id": "CAND-15", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": false, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Healthcare Data skill"},
+        {"candidate_id": "CAND-17", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Healthcare Data skill"},
+        {"candidate_id": "CAND-20", "occupational_relevance": 0, "policy_eligible": true, "system_recognized": true, "system_eligible": false, "category": "GENUINE_IRRELEVANCE", "exclusion_reason": "Missing mandatory Healthcare Data skill"}
+      ]
+    }
+  ]
+}

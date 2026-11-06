@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NextAllocSkillContract",
+  "type": "object",
+  "description": "Proposed shared skill contract decoupling lexical equivalence, evidence provenance, and policy eligibility.",
+  "required": [
+    "conceptId",
+    "canonicalName",
+    "rawInput",
+    "relationType",
+    "isLexicallyEquivalent",
+    "ontologyRelation",
+    "taxonomyVersion",
+    "claimSource",
+    "evidenceStatus",
+    "proposedSoftWeight"
+  ],
+  "properties": {
+    "conceptId": {
+      "type": "string",
+      "description": "Unique URI or URN identifying the canonical skill concept",
+      "example": "urn:nextalloc:skill:v1:deep-learning"
+    },
+    "canonicalName": {
+      "type": "string",
+      "description": "Authorized canonical display name in NextAlloc taxonomy",
+      "example": "Deep Learning"
+    },
+    "rawInput": {
+      "type": "string",
+      "description": "Exact text or token provided by candidate or extracted from document",
+      "example": "PyTorch"
+    },
+    "relationType": {
+      "type": "string",
+      "enum": [
+        "EXACT_CANONICAL",
+        "VERIFIED_ALIAS",
+        "RELATED_CONCEPT",
+        "COMPOSITE_LABEL",
+        "OUT_OF_SCOPE_TAXONOMY",
+        "UNRELATED_TERM"
+      ],
+      "description": "Lexical relationship between raw input and canonical catalog"
+    },
+    "isLexicallyEquivalent": {
+      "type": "boolean",
+      "description": "True strictly for EXACT_CANONICAL and unambiguous VERIFIED_ALIAS. False for related tools, sub-disciplines, composites, and out-of-scope skills. DOES NOT imply policy eligibility."
+    },
+    "ontologyRelation": {
+      "type": "string",
+      "enum": [
+        "EQUIVALENT_TO",
+        "SPECIALIZATION_OF",
+        "GENERALIZATION_OF",
+        "TOOL_OR_FRAMEWORK_FOR",
+        "DISJOINT_FROM"
+      ],
+      "description": "ESCO-aligned directional ontology relationship"
+    },
+    "taxonomyVersion": {
+      "type": "string",
+      "description": "Semantic version of the authoritative skill catalog",
+      "example": "1.1.0-draft"
+    },
+    "claimSource": {
+      "type": "string",
+      "enum": [
+        "RESUME_EXTRACTION",
+        "SELF_DECLARED_PROFILE",
+        "ACADEMIC_TRANSCRIPT",
+        "INSTITUTIONAL_NOC",
+        "ADMIN_VERIFIED_ASSESSMENT"
+      ],
+      "description": "Origin of the skill claim"
+    },
+    "evidenceStatus": {
+      "type": "string",
+      "enum": [
+        "UNVERIFIED_SELF_REPORTED",
+        "EXTRACTED_UNCONFIRMED",
+        "INSTITUTIONALLY_ATTESTED",
+        "ADMIN_AUDITED"
+      ],
+      "description": "Verification status of underlying evidence. Distinct from lexical validation."
+    },
+    "proposedSoftWeight": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Uncalibrated candidate fractional weight for soft suitability research (subject to empirical tuning)"
+    },
+    "taxonomyGap": {
+      "type": "boolean",
+      "description": "True if skill is a valid occupational skill outside current prototype taxonomy"
+    },
+    "sectorAttribution": {
+      "type": ["string", "null"],
+      "description": "Economic sector for out-of-scope skills (e.g. Food Processing, Agriculture, Manufacturing)"
+    }
+  }
+}

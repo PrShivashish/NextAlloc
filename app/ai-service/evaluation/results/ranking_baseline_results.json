@@ -1,0 +1,1097 @@
+{
+  "metadata": {
+    "phase": "4B-2A",
+    "title": "Baseline Candidate-Internship Ranking Evaluation with Decoupled Metrics",
+    "timestamp": "2026-11-06T09:19:15Z",
+    "environment": {
+      "python_version": "3.11.9",
+      "os": "Windows",
+      "processor": "AMD64 Family 25 Model 68 Stepping 1, AuthenticAMD"
+    },
+    "evaluator_conventions": {
+      "zero_relevance_policy": "Queries with N_relevant=0 have undefined (None) Recall and nDCG; excluded from positive averages; evaluated via True Rejection Rate.",
+      "precision_denominators": "Standard Fixed-K uses denominator K (e.g. K=3 -> /3). Truncated-K uses min(K, pool_size).",
+      "ranking_mode": "Strict Hard Eligibility Gating followed by Overall Suitability Score and Deterministic Tie-Breaking.",
+      "weights": {
+        "skills": 35.0,
+        "qualification": 15.0,
+        "interest": 15.0,
+        "location": 10.0,
+        "preference": 10.0,
+        "learning": 10.0,
+        "experience": 5.0
+      }
+    }
+  },
+  "dataset_summary": {
+    "total_candidates": 20,
+    "total_opportunities": 12,
+    "total_ranking_queries": 12,
+    "total_candidate_opportunity_pairs": 49
+  },
+  "safety_and_distinction_metrics": {
+    "mandatory_distinction_accuracy": 1.0,
+    "ineligible_leakage_count": 0,
+    "ineligible_leakage_rate": 0.0,
+    "mandatory_hard_gate_respected": true
+  },
+  "occupational_domain_evaluation": {
+    "description": "Evaluates NextAlloc against genuine multi-sector occupational relevance. Exposes system coverage deficits in agriculture and trade sectors.",
+    "validation_split": {
+      "total_queries": 6,
+      "positive_queries": 6,
+      "zero_positive_queries": 0,
+      "true_rejection_rate": 1.0,
+      "mean_p@1": 1.0,
+      "mean_p@3": 0.5555,
+      "mean_p@5": 0.4333,
+      "mean_p_pool_bounded@3": 0.5555,
+      "positive_queries_only": {
+        "mean_p@1": 1.0,
+        "mean_p@3": 0.5555,
+        "mean_p@5": 0.4333,
+        "mean_r@1": 0.6583,
+        "mean_r@3": 0.8583,
+        "mean_r@5": 0.9667,
+        "mean_ndcg@3": 0.8839,
+        "mean_ndcg@5": 0.9028,
+        "mean_mrr": 1.0
+      }
+    },
+    "held_out_test_split": {
+      "total_queries": 6,
+      "positive_queries": 6,
+      "zero_positive_queries": 0,
+      "true_rejection_rate": 1.0,
+      "mean_p@1": 1.0,
+      "mean_p@3": 0.5556,
+      "mean_p@5": 0.3333,
+      "mean_p_pool_bounded@3": 0.5556,
+      "positive_queries_only": {
+        "mean_p@1": 1.0,
+        "mean_p@3": 0.5556,
+        "mean_p@5": 0.3333,
+        "mean_r@1": 0.6667,
+        "mean_r@3": 1.0,
+        "mean_r@5": 1.0,
+        "mean_ndcg@3": 0.9396,
+        "mean_ndcg@5": 0.9396,
+        "mean_mrr": 1.0
+      }
+    },
+    "overall": {
+      "total_queries": 12,
+      "positive_queries": 12,
+      "zero_positive_queries": 0,
+      "true_rejection_rate": 1.0,
+      "mean_p@1": 1.0,
+      "mean_p@3": 0.5556,
+      "mean_p@5": 0.3833,
+      "mean_p_pool_bounded@3": 0.5556,
+      "positive_queries_only": {
+        "mean_p@1": 1.0,
+        "mean_p@3": 0.5556,
+        "mean_p@5": 0.3833,
+        "mean_r@1": 0.6625,
+        "mean_r@3": 0.9292,
+        "mean_r@5": 0.9833,
+        "mean_ndcg@3": 0.9118,
+        "mean_ndcg@5": 0.9212,
+        "mean_mrr": 1.0
+      }
+    }
+  },
+  "system_recognized_baseline_evaluation": {
+    "description": "Evaluates NextAlloc strictly within its recognized catalog boundary. Properly handles empty-relevant queries without mathematical distortion.",
+    "validation_split": {
+      "total_queries": 6,
+      "positive_queries": 5,
+      "zero_positive_queries": 1,
+      "true_rejection_rate": 1.0,
+      "mean_p@1": 0.8333,
+      "mean_p@3": 0.3333,
+      "mean_p@5": 0.2,
+      "mean_p_pool_bounded@3": 0.3333,
+      "positive_queries_only": {
+        "mean_p@1": 1.0,
+        "mean_p@3": 0.4,
+        "mean_p@5": 0.24,
+        "mean_r@1": 0.9,
+        "mean_r@3": 1.0,
+        "mean_r@5": 1.0,
+        "mean_ndcg@3": 1.0,
+        "mean_ndcg@5": 1.0,
+        "mean_mrr": 1.0
+      }
+    },
+    "held_out_test_split": {
+      "total_queries": 6,
+      "positive_queries": 2,
+      "zero_positive_queries": 4,
+      "true_rejection_rate": 1.0,
+      "mean_p@1": 0.3333,
+      "mean_p@3": 0.1111,
+      "mean_p@5": 0.0667,
+      "mean_p_pool_bounded@3": 0.1111,
+      "positive_queries_only": {
+        "mean_p@1": 1.0,
+        "mean_p@3": 0.3333,
+        "mean_p@5": 0.2,
+        "mean_r@1": 1.0,
+        "mean_r@3": 1.0,
+        "mean_r@5": 1.0,
+        "mean_ndcg@3": 1.0,
+        "mean_ndcg@5": 1.0,
+        "mean_mrr": 1.0
+      }
+    },
+    "overall": {
+      "total_queries": 12,
+      "positive_queries": 7,
+      "zero_positive_queries": 5,
+      "true_rejection_rate": 1.0,
+      "mean_p@1": 0.5833,
+      "mean_p@3": 0.2222,
+      "mean_p@5": 0.1333,
+      "mean_p_pool_bounded@3": 0.2222,
+      "positive_queries_only": {
+        "mean_p@1": 1.0,
+        "mean_p@3": 0.3809,
+        "mean_p@5": 0.2286,
+        "mean_r@1": 0.9286,
+        "mean_r@3": 1.0,
+        "mean_r@5": 1.0,
+        "mean_ndcg@3": 1.0,
+        "mean_ndcg@5": 1.0,
+        "mean_mrr": 1.0
+      }
+    }
+  },
+  "performance": {
+    "total_evaluation_time_ms": 1.21,
+    "avg_latency_per_pair_ms": 0.0247,
+    "pairs_per_second": 40562.9
+  },
+  "query_details": [
+    {
+      "case_id": "RANK-VAL-01",
+      "split": "validation",
+      "opportunity_id": "OPP-01",
+      "title": "Backend Ranking for OPP-01 (Python mandatory)",
+      "candidates_evaluated": 6,
+      "occupational_metrics": {
+        "pool_size": 6,
+        "relevant_count": 5,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.6667,
+        "p_pool_bounded@3": 0.6667,
+        "p@5": 0.8,
+        "p_pool_bounded@5": 0.8,
+        "r@1": 0.2,
+        "r@3": 0.4,
+        "r@5": 0.8,
+        "ndcg@3": 0.6885,
+        "ndcg@5": 0.707,
+        "mrr": 1.0
+      },
+      "system_recognized_metrics": {
+        "pool_size": 6,
+        "relevant_count": 2,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.6667,
+        "p_pool_bounded@3": 0.6667,
+        "p@5": 0.4,
+        "p_pool_bounded@5": 0.4,
+        "r@1": 0.5,
+        "r@3": 1.0,
+        "r@5": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "mrr": 1.0
+      },
+      "rejection_successful": true,
+      "ranked_candidates": [
+        {
+          "rank": 1,
+          "candidate_id": "CAND-01",
+          "is_eligible": true,
+          "score": 86.4,
+          "category": "RECOGNIZED_ELIGIBLE_MATCH",
+          "occupational_grade": 3
+        },
+        {
+          "rank": 2,
+          "candidate_id": "CAND-04",
+          "is_eligible": true,
+          "score": 71.2,
+          "category": "RECOGNIZED_ELIGIBLE_MATCH",
+          "occupational_grade": 2
+        },
+        {
+          "rank": 3,
+          "candidate_id": "CAND-02",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        },
+        {
+          "rank": 4,
+          "candidate_id": "CAND-03",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "SYSTEM_COVERAGE_DEFICIT",
+          "occupational_grade": 1
+        },
+        {
+          "rank": 5,
+          "candidate_id": "CAND-06",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 1
+        },
+        {
+          "rank": 6,
+          "candidate_id": "CAND-07",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "HARD_POLICY_EXCLUSION",
+          "occupational_grade": 3
+        }
+      ]
+    },
+    {
+      "case_id": "RANK-VAL-02",
+      "split": "validation",
+      "opportunity_id": "OPP-02",
+      "title": "Frontend Ranking for OPP-02 (Web Development mandatory)",
+      "candidates_evaluated": 4,
+      "occupational_metrics": {
+        "pool_size": 4,
+        "relevant_count": 1,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.3333,
+        "p_pool_bounded@3": 0.3333,
+        "p@5": 0.2,
+        "p_pool_bounded@5": 0.25,
+        "r@1": 1.0,
+        "r@3": 1.0,
+        "r@5": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "mrr": 1.0
+      },
+      "system_recognized_metrics": {
+        "pool_size": 4,
+        "relevant_count": 1,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.3333,
+        "p_pool_bounded@3": 0.3333,
+        "p@5": 0.2,
+        "p_pool_bounded@5": 0.25,
+        "r@1": 1.0,
+        "r@3": 1.0,
+        "r@5": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "mrr": 1.0
+      },
+      "rejection_successful": true,
+      "ranked_candidates": [
+        {
+          "rank": 1,
+          "candidate_id": "CAND-02",
+          "is_eligible": true,
+          "score": 86.0,
+          "category": "RECOGNIZED_ELIGIBLE_MATCH",
+          "occupational_grade": 3
+        },
+        {
+          "rank": 2,
+          "candidate_id": "CAND-01",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        },
+        {
+          "rank": 3,
+          "candidate_id": "CAND-06",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        },
+        {
+          "rank": 4,
+          "candidate_id": "CAND-09",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        }
+      ]
+    },
+    {
+      "case_id": "RANK-VAL-03",
+      "split": "validation",
+      "opportunity_id": "OPP-03",
+      "title": "BI Analytics Ranking for OPP-03 (SQL mandatory)",
+      "candidates_evaluated": 4,
+      "occupational_metrics": {
+        "pool_size": 4,
+        "relevant_count": 2,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.6667,
+        "p_pool_bounded@3": 0.6667,
+        "p@5": 0.4,
+        "p_pool_bounded@5": 0.5,
+        "r@1": 0.5,
+        "r@3": 1.0,
+        "r@5": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "mrr": 1.0
+      },
+      "system_recognized_metrics": {
+        "pool_size": 4,
+        "relevant_count": 1,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.3333,
+        "p_pool_bounded@3": 0.3333,
+        "p@5": 0.2,
+        "p_pool_bounded@5": 0.25,
+        "r@1": 1.0,
+        "r@3": 1.0,
+        "r@5": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "mrr": 1.0
+      },
+      "rejection_successful": true,
+      "ranked_candidates": [
+        {
+          "rank": 1,
+          "candidate_id": "CAND-09",
+          "is_eligible": true,
+          "score": 86.4,
+          "category": "RECOGNIZED_ELIGIBLE_MATCH",
+          "occupational_grade": 3
+        },
+        {
+          "rank": 2,
+          "candidate_id": "CAND-01",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 1
+        },
+        {
+          "rank": 3,
+          "candidate_id": "CAND-05",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        },
+        {
+          "rank": 4,
+          "candidate_id": "CAND-10",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        }
+      ]
+    },
+    {
+      "case_id": "RANK-VAL-04",
+      "split": "validation",
+      "opportunity_id": "OPP-04",
+      "title": "AI Research Ranking for OPP-04 (Python & ML mandatory, Post-Grad required)",
+      "candidates_evaluated": 4,
+      "occupational_metrics": {
+        "pool_size": 4,
+        "relevant_count": 4,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 1.0,
+        "p_pool_bounded@3": 1.0,
+        "p@5": 0.8,
+        "p_pool_bounded@5": 1.0,
+        "r@1": 0.25,
+        "r@3": 0.75,
+        "r@5": 1.0,
+        "ndcg@3": 0.6151,
+        "ndcg@5": 0.71,
+        "mrr": 1.0
+      },
+      "system_recognized_metrics": {
+        "pool_size": 4,
+        "relevant_count": 0,
+        "is_zero_positive_query": true,
+        "p@1": 0.0,
+        "p_pool_bounded@1": 0.0,
+        "p@3": 0.0,
+        "p_pool_bounded@3": 0.0,
+        "p@5": 0.0,
+        "p_pool_bounded@5": 0.0,
+        "r@1": null,
+        "r@3": null,
+        "r@5": null,
+        "ndcg@3": null,
+        "ndcg@5": null,
+        "mrr": 0.0
+      },
+      "rejection_successful": true,
+      "ranked_candidates": [
+        {
+          "rank": 1,
+          "candidate_id": "CAND-01",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "HARD_POLICY_EXCLUSION",
+          "occupational_grade": 1
+        },
+        {
+          "rank": 2,
+          "candidate_id": "CAND-03",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "SYSTEM_COVERAGE_DEFICIT",
+          "occupational_grade": 2
+        },
+        {
+          "rank": 3,
+          "candidate_id": "CAND-07",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "HARD_POLICY_EXCLUSION",
+          "occupational_grade": 3
+        },
+        {
+          "rank": 4,
+          "candidate_id": "CAND-08",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "HARD_POLICY_EXCLUSION",
+          "occupational_grade": 2
+        }
+      ]
+    },
+    {
+      "case_id": "RANK-VAL-05",
+      "split": "validation",
+      "opportunity_id": "OPP-05",
+      "title": "Manufacturing Operations Ranking for OPP-05 (Operations mandatory)",
+      "candidates_evaluated": 4,
+      "occupational_metrics": {
+        "pool_size": 4,
+        "relevant_count": 1,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.3333,
+        "p_pool_bounded@3": 0.3333,
+        "p@5": 0.2,
+        "p_pool_bounded@5": 0.25,
+        "r@1": 1.0,
+        "r@3": 1.0,
+        "r@5": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "mrr": 1.0
+      },
+      "system_recognized_metrics": {
+        "pool_size": 4,
+        "relevant_count": 1,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.3333,
+        "p_pool_bounded@3": 0.3333,
+        "p@5": 0.2,
+        "p_pool_bounded@5": 0.25,
+        "r@1": 1.0,
+        "r@3": 1.0,
+        "r@5": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "mrr": 1.0
+      },
+      "rejection_successful": true,
+      "ranked_candidates": [
+        {
+          "rank": 1,
+          "candidate_id": "CAND-10",
+          "is_eligible": true,
+          "score": 83.9,
+          "category": "RECOGNIZED_ELIGIBLE_MATCH",
+          "occupational_grade": 3
+        },
+        {
+          "rank": 2,
+          "candidate_id": "CAND-01",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        },
+        {
+          "rank": 3,
+          "candidate_id": "CAND-05",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        },
+        {
+          "rank": 4,
+          "candidate_id": "CAND-09",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        }
+      ]
+    },
+    {
+      "case_id": "RANK-VAL-06",
+      "split": "validation",
+      "opportunity_id": "OPP-06",
+      "title": "Industrial Production Trainee for OPP-06 (Operations mandatory, Bachelors required)",
+      "candidates_evaluated": 3,
+      "occupational_metrics": {
+        "pool_size": 3,
+        "relevant_count": 1,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.3333,
+        "p_pool_bounded@3": 0.3333,
+        "p@5": 0.2,
+        "p_pool_bounded@5": 0.3333,
+        "r@1": 1.0,
+        "r@3": 1.0,
+        "r@5": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "mrr": 1.0
+      },
+      "system_recognized_metrics": {
+        "pool_size": 3,
+        "relevant_count": 1,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.3333,
+        "p_pool_bounded@3": 0.3333,
+        "p@5": 0.2,
+        "p_pool_bounded@5": 0.3333,
+        "r@1": 1.0,
+        "r@3": 1.0,
+        "r@5": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "mrr": 1.0
+      },
+      "rejection_successful": true,
+      "ranked_candidates": [
+        {
+          "rank": 1,
+          "candidate_id": "CAND-10",
+          "is_eligible": true,
+          "score": 71.4,
+          "category": "RECOGNIZED_ELIGIBLE_MATCH",
+          "occupational_grade": 3
+        },
+        {
+          "rank": 2,
+          "candidate_id": "CAND-02",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        },
+        {
+          "rank": 3,
+          "candidate_id": "CAND-08",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "HARD_POLICY_EXCLUSION",
+          "occupational_grade": 0
+        }
+      ]
+    },
+    {
+      "case_id": "RANK-HLD-01",
+      "split": "held_out_test",
+      "opportunity_id": "OPP-07",
+      "title": "Food Processing Quality Specialist for OPP-07 (Operations mandatory)",
+      "candidates_evaluated": 4,
+      "occupational_metrics": {
+        "pool_size": 4,
+        "relevant_count": 2,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.6667,
+        "p_pool_bounded@3": 0.6667,
+        "p@5": 0.4,
+        "p_pool_bounded@5": 0.5,
+        "r@1": 0.5,
+        "r@3": 1.0,
+        "r@5": 1.0,
+        "ndcg@3": 0.7098,
+        "ndcg@5": 0.7098,
+        "mrr": 1.0
+      },
+      "system_recognized_metrics": {
+        "pool_size": 4,
+        "relevant_count": 0,
+        "is_zero_positive_query": true,
+        "p@1": 0.0,
+        "p_pool_bounded@1": 0.0,
+        "p@3": 0.0,
+        "p_pool_bounded@3": 0.0,
+        "p@5": 0.0,
+        "p_pool_bounded@5": 0.0,
+        "r@1": null,
+        "r@3": null,
+        "r@5": null,
+        "ndcg@3": null,
+        "ndcg@5": null,
+        "mrr": 0.0
+      },
+      "rejection_successful": true,
+      "ranked_candidates": [
+        {
+          "rank": 1,
+          "candidate_id": "CAND-11",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "SYSTEM_COVERAGE_DEFICIT",
+          "occupational_grade": 1
+        },
+        {
+          "rank": 2,
+          "candidate_id": "CAND-12",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "SYSTEM_COVERAGE_DEFICIT",
+          "occupational_grade": 3
+        },
+        {
+          "rank": 3,
+          "candidate_id": "CAND-16",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        },
+        {
+          "rank": 4,
+          "candidate_id": "CAND-20",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        }
+      ]
+    },
+    {
+      "case_id": "RANK-HLD-02",
+      "split": "held_out_test",
+      "opportunity_id": "OPP-08",
+      "title": "Dairy Bioprocessing Intern for OPP-08 (Research mandatory)",
+      "candidates_evaluated": 4,
+      "occupational_metrics": {
+        "pool_size": 4,
+        "relevant_count": 2,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.6667,
+        "p_pool_bounded@3": 0.6667,
+        "p@5": 0.4,
+        "p_pool_bounded@5": 0.5,
+        "r@1": 0.5,
+        "r@3": 1.0,
+        "r@5": 1.0,
+        "ndcg@3": 0.9639,
+        "ndcg@5": 0.9639,
+        "mrr": 1.0
+      },
+      "system_recognized_metrics": {
+        "pool_size": 4,
+        "relevant_count": 0,
+        "is_zero_positive_query": true,
+        "p@1": 0.0,
+        "p_pool_bounded@1": 0.0,
+        "p@3": 0.0,
+        "p_pool_bounded@3": 0.0,
+        "p@5": 0.0,
+        "p_pool_bounded@5": 0.0,
+        "r@1": null,
+        "r@3": null,
+        "r@5": null,
+        "ndcg@3": null,
+        "ndcg@5": null,
+        "mrr": 0.0
+      },
+      "rejection_successful": true,
+      "ranked_candidates": [
+        {
+          "rank": 1,
+          "candidate_id": "CAND-12",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "SYSTEM_COVERAGE_DEFICIT",
+          "occupational_grade": 2
+        },
+        {
+          "rank": 2,
+          "candidate_id": "CAND-14",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        },
+        {
+          "rank": 3,
+          "candidate_id": "CAND-18",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 1
+        },
+        {
+          "rank": 4,
+          "candidate_id": "CAND-19",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        }
+      ]
+    },
+    {
+      "case_id": "RANK-HLD-03",
+      "split": "held_out_test",
+      "opportunity_id": "OPP-09",
+      "title": "Sustainable Agronomy Analytics for OPP-09 (Environmental Science mandatory)",
+      "candidates_evaluated": 4,
+      "occupational_metrics": {
+        "pool_size": 4,
+        "relevant_count": 2,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.6667,
+        "p_pool_bounded@3": 0.6667,
+        "p@5": 0.4,
+        "p_pool_bounded@5": 0.5,
+        "r@1": 0.5,
+        "r@3": 1.0,
+        "r@5": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "mrr": 1.0
+      },
+      "system_recognized_metrics": {
+        "pool_size": 4,
+        "relevant_count": 0,
+        "is_zero_positive_query": true,
+        "p@1": 0.0,
+        "p_pool_bounded@1": 0.0,
+        "p@3": 0.0,
+        "p_pool_bounded@3": 0.0,
+        "p@5": 0.0,
+        "p_pool_bounded@5": 0.0,
+        "r@1": null,
+        "r@3": null,
+        "r@5": null,
+        "ndcg@3": null,
+        "ndcg@5": null,
+        "mrr": 0.0
+      },
+      "rejection_successful": true,
+      "ranked_candidates": [
+        {
+          "rank": 1,
+          "candidate_id": "CAND-13",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "SYSTEM_COVERAGE_DEFICIT",
+          "occupational_grade": 3
+        },
+        {
+          "rank": 2,
+          "candidate_id": "CAND-14",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "SYSTEM_COVERAGE_DEFICIT",
+          "occupational_grade": 1
+        },
+        {
+          "rank": 3,
+          "candidate_id": "CAND-18",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        },
+        {
+          "rank": 4,
+          "candidate_id": "CAND-20",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        }
+      ]
+    },
+    {
+      "case_id": "RANK-HLD-04",
+      "split": "held_out_test",
+      "opportunity_id": "OPP-10",
+      "title": "Rural Agricultural Supply Chain for OPP-10 (Supply Chain mandatory)",
+      "candidates_evaluated": 4,
+      "occupational_metrics": {
+        "pool_size": 4,
+        "relevant_count": 2,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.6667,
+        "p_pool_bounded@3": 0.6667,
+        "p@5": 0.4,
+        "p_pool_bounded@5": 0.5,
+        "r@1": 0.5,
+        "r@3": 1.0,
+        "r@5": 1.0,
+        "ndcg@3": 0.9639,
+        "ndcg@5": 0.9639,
+        "mrr": 1.0
+      },
+      "system_recognized_metrics": {
+        "pool_size": 4,
+        "relevant_count": 0,
+        "is_zero_positive_query": true,
+        "p@1": 0.0,
+        "p_pool_bounded@1": 0.0,
+        "p@3": 0.0,
+        "p_pool_bounded@3": 0.0,
+        "p@5": 0.0,
+        "p_pool_bounded@5": 0.0,
+        "r@1": null,
+        "r@3": null,
+        "r@5": null,
+        "ndcg@3": null,
+        "ndcg@5": null,
+        "mrr": 0.0
+      },
+      "rejection_successful": true,
+      "ranked_candidates": [
+        {
+          "rank": 1,
+          "candidate_id": "CAND-13",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "SYSTEM_COVERAGE_DEFICIT",
+          "occupational_grade": 2
+        },
+        {
+          "rank": 2,
+          "candidate_id": "CAND-15",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        },
+        {
+          "rank": 3,
+          "candidate_id": "CAND-17",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 1
+        },
+        {
+          "rank": 4,
+          "candidate_id": "CAND-20",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        }
+      ]
+    },
+    {
+      "case_id": "RANK-HLD-05",
+      "split": "held_out_test",
+      "opportunity_id": "OPP-11",
+      "title": "Corporate Financial Audit for OPP-11 (Accounting mandatory)",
+      "candidates_evaluated": 4,
+      "occupational_metrics": {
+        "pool_size": 4,
+        "relevant_count": 1,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.3333,
+        "p_pool_bounded@3": 0.3333,
+        "p@5": 0.2,
+        "p_pool_bounded@5": 0.25,
+        "r@1": 1.0,
+        "r@3": 1.0,
+        "r@5": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "mrr": 1.0
+      },
+      "system_recognized_metrics": {
+        "pool_size": 4,
+        "relevant_count": 1,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.3333,
+        "p_pool_bounded@3": 0.3333,
+        "p@5": 0.2,
+        "p_pool_bounded@5": 0.25,
+        "r@1": 1.0,
+        "r@3": 1.0,
+        "r@5": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "mrr": 1.0
+      },
+      "rejection_successful": true,
+      "ranked_candidates": [
+        {
+          "rank": 1,
+          "candidate_id": "CAND-17",
+          "is_eligible": true,
+          "score": 86.4,
+          "category": "RECOGNIZED_ELIGIBLE_MATCH",
+          "occupational_grade": 3
+        },
+        {
+          "rank": 2,
+          "candidate_id": "CAND-16",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        },
+        {
+          "rank": 3,
+          "candidate_id": "CAND-19",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        },
+        {
+          "rank": 4,
+          "candidate_id": "CAND-20",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        }
+      ]
+    },
+    {
+      "case_id": "RANK-HLD-06",
+      "split": "held_out_test",
+      "opportunity_id": "OPP-12",
+      "title": "Healthcare Clinical Analytics for OPP-12 (Healthcare Data mandatory)",
+      "candidates_evaluated": 4,
+      "occupational_metrics": {
+        "pool_size": 4,
+        "relevant_count": 1,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.3333,
+        "p_pool_bounded@3": 0.3333,
+        "p@5": 0.2,
+        "p_pool_bounded@5": 0.25,
+        "r@1": 1.0,
+        "r@3": 1.0,
+        "r@5": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "mrr": 1.0
+      },
+      "system_recognized_metrics": {
+        "pool_size": 4,
+        "relevant_count": 1,
+        "is_zero_positive_query": false,
+        "p@1": 1.0,
+        "p_pool_bounded@1": 1.0,
+        "p@3": 0.3333,
+        "p_pool_bounded@3": 0.3333,
+        "p@5": 0.2,
+        "p_pool_bounded@5": 0.25,
+        "r@1": 1.0,
+        "r@3": 1.0,
+        "r@5": 1.0,
+        "ndcg@3": 1.0,
+        "ndcg@5": 1.0,
+        "mrr": 1.0
+      },
+      "rejection_successful": true,
+      "ranked_candidates": [
+        {
+          "rank": 1,
+          "candidate_id": "CAND-18",
+          "is_eligible": true,
+          "score": 86.4,
+          "category": "RECOGNIZED_ELIGIBLE_MATCH",
+          "occupational_grade": 3
+        },
+        {
+          "rank": 2,
+          "candidate_id": "CAND-15",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        },
+        {
+          "rank": 3,
+          "candidate_id": "CAND-17",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        },
+        {
+          "rank": 4,
+          "candidate_id": "CAND-20",
+          "is_eligible": false,
+          "score": 0.0,
+          "category": "GENUINE_IRRELEVANCE",
+          "occupational_grade": 0
+        }
+      ]
+    }
+  ]
+}
