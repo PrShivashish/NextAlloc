@@ -1,0 +1,309 @@
+{
+  "metadata": {
+    "phase": "4B-1A",
+    "title": "Baseline Semantic Skill Scoring & Extraction Assessment",
+    "git_commit": "bcd5667fbf3c75ca1c78f6d0f2501b86f470cd35",
+    "timestamp": "2026-11-06T08:26:30Z",
+    "runtime_environment": {
+      "python_version": "3.11.9",
+      "os": "Windows",
+      "os_release": "10",
+      "processor": "AMD64 Family 25 Model 68 Stepping 1, AuthenticAMD"
+    },
+    "engine_under_test": {
+      "mode": "deterministic-taxonomy",
+      "description": "Deterministic taxonomy matching \u2014 validated skill lexicon with synonym normalization. No embedding model is used, and the engine only ever reports skills that exist in the validated taxonomy.",
+      "canonical_count": 42,
+      "synonym_count": 73,
+      "embedding_model": null
+    },
+    "random_seed": 42
+  },
+  "normalization_benchmark": {
+    "total_samples": 60,
+    "execution_time_ms": 0.24,
+    "metrics": {
+      "total_queries": 60,
+      "overall_accuracy": 0.5333,
+      "negative_rejection_rate": 1.0,
+      "category_breakdown": {
+        "in_vocabulary_sanity": {
+          "total": 20,
+          "correct": 20,
+          "accuracy": 1.0,
+          "error_count": 0
+        },
+        "out_of_vocabulary_semantic": {
+          "total": 20,
+          "correct": 2,
+          "accuracy": 0.1,
+          "error_count": 18
+        },
+        "negative_controls": {
+          "total": 10,
+          "correct": 10,
+          "accuracy": 1.0,
+          "error_count": 0
+        },
+        "held_out_test": {
+          "total": 10,
+          "correct": 0,
+          "accuracy": 0.0,
+          "error_count": 10
+        }
+      },
+      "raw_categories": {
+        "in_vocabulary_sanity": {
+          "total": 20,
+          "correct": 20,
+          "errors": []
+        },
+        "out_of_vocabulary_semantic": {
+          "total": 20,
+          "correct": 2,
+          "errors": [
+            {
+              "id": "OOV-01",
+              "query": "PyTorch",
+              "expected": "Deep Learning",
+              "predicted": null
+            },
+            {
+              "id": "OOV-02",
+              "query": "TensorFlow",
+              "expected": "Deep Learning",
+              "predicted": null
+            },
+            {
+              "id": "OOV-03",
+              "query": "FastAPI",
+              "expected": "Python",
+              "predicted": null
+            },
+            {
+              "id": "OOV-04",
+              "query": "Django",
+              "expected": "Python",
+              "predicted": null
+            },
+            {
+              "id": "OOV-05",
+              "query": "TypeScript",
+              "expected": "JavaScript",
+              "predicted": null
+            },
+            {
+              "id": "OOV-06",
+              "query": "Next.js",
+              "expected": "React",
+              "predicted": null
+            },
+            {
+              "id": "OOV-08",
+              "query": "Pandas",
+              "expected": "Data Analysis",
+              "predicted": null
+            },
+            {
+              "id": "OOV-09",
+              "query": "NumPy",
+              "expected": "Data Analysis",
+              "predicted": null
+            },
+            {
+              "id": "OOV-11",
+              "query": "Terraform",
+              "expected": "Cloud Computing",
+              "predicted": null
+            },
+            {
+              "id": "OOV-12",
+              "query": "REST API development",
+              "expected": "Web Development",
+              "predicted": null
+            },
+            {
+              "id": "OOV-13",
+              "query": "Wireframing and prototyping",
+              "expected": "UI/UX Design",
+              "predicted": null
+            },
+            {
+              "id": "OOV-14",
+              "query": "Corporate Financial Modeling",
+              "expected": "Finance",
+              "predicted": null
+            },
+            {
+              "id": "OOV-15",
+              "query": "Bookkeeping & General Ledger",
+              "expected": "Accounting",
+              "predicted": null
+            },
+            {
+              "id": "OOV-16",
+              "query": "Statutory Compliance & Legal Drafting",
+              "expected": "Legal Research",
+              "predicted": null
+            },
+            {
+              "id": "OOV-17",
+              "query": "Inventory Optimization & Logistics",
+              "expected": "Supply Chain",
+              "predicted": null
+            },
+            {
+              "id": "OOV-18",
+              "query": "Environmental Impact Assessment",
+              "expected": "Environmental Science",
+              "predicted": null
+            },
+            {
+              "id": "OOV-19",
+              "query": "Clinical Trial Informatics",
+              "expected": "Healthcare Data",
+              "predicted": null
+            },
+            {
+              "id": "OOV-20",
+              "query": "Copywriting and Technical Blogging",
+              "expected": "Content Writing",
+              "predicted": null
+            }
+          ]
+        },
+        "negative_controls": {
+          "total": 10,
+          "correct": 10,
+          "errors": []
+        },
+        "held_out_test": {
+          "total": 10,
+          "correct": 0,
+          "errors": [
+            {
+              "id": "HLD-01",
+              "query": "Scikit-Learn modeling",
+              "expected": "Machine Learning",
+              "predicted": null
+            },
+            {
+              "id": "HLD-02",
+              "query": "Seaborn data plotting",
+              "expected": "Data Analysis",
+              "predicted": null
+            },
+            {
+              "id": "HLD-03",
+              "query": "Flutter mobile development",
+              "expected": "Web Development",
+              "predicted": null
+            },
+            {
+              "id": "HLD-04",
+              "query": "Ansible automation",
+              "expected": "DevOps",
+              "predicted": null
+            },
+            {
+              "id": "HLD-05",
+              "query": "Ethical Hacking & Penetration Testing",
+              "expected": "Cybersecurity",
+              "predicted": null
+            },
+            {
+              "id": "HLD-06",
+              "query": "Talent Acquisition & Employee Onboarding",
+              "expected": "HR Management",
+              "predicted": null
+            },
+            {
+              "id": "HLD-07",
+              "query": "Corporate Tax Auditing",
+              "expected": "Accounting",
+              "predicted": null
+            },
+            {
+              "id": "HLD-08",
+              "query": "Urban Governance & Municipal Administration",
+              "expected": "Public Administration",
+              "predicted": null
+            },
+            {
+              "id": "HLD-09",
+              "query": "Supply Chain Logistics & Warehouse Routing",
+              "expected": "Supply Chain",
+              "predicted": null
+            },
+            {
+              "id": "HLD-10",
+              "query": "HuggingFace Transformers",
+              "expected": "NLP",
+              "predicted": null
+            }
+          ]
+        }
+      }
+    }
+  },
+  "resume_extraction_benchmark": {
+    "total_samples": 5,
+    "execution_time_ms": 1.29,
+    "metrics": {
+      "macro_precision": 1.0,
+      "macro_recall": 0.86,
+      "macro_f1": 0.9206,
+      "micro_precision": 1.0,
+      "micro_recall": 0.8,
+      "micro_f1": 0.8889,
+      "sample_breakdown": [
+        {
+          "id": "RES-01",
+          "precision": 1.0,
+          "recall": 0.75,
+          "f1": 0.8571,
+          "missing": [
+            "Deep Learning"
+          ],
+          "spurious": []
+        },
+        {
+          "id": "RES-02",
+          "precision": 1.0,
+          "recall": 0.8,
+          "f1": 0.8889,
+          "missing": [
+            "Web Development"
+          ],
+          "spurious": []
+        },
+        {
+          "id": "RES-03",
+          "precision": 1.0,
+          "recall": 0.75,
+          "f1": 0.8571,
+          "missing": [
+            "Statistics"
+          ],
+          "spurious": []
+        },
+        {
+          "id": "RES-04",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "missing": [],
+          "spurious": []
+        },
+        {
+          "id": "RES-05",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "missing": [],
+          "spurious": []
+        }
+      ]
+    }
+  }
+}

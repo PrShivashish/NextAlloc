@@ -1,0 +1,598 @@
+{
+  "metadata": {
+    "benchmark_name": "NextAlloc Semantic Skill Normalization & Extraction Benchmark",
+    "version": "1.0.0",
+    "created_at": "2026-11-06T08:15:00Z",
+    "hash_id": "sha256-b8c19d4e5f7a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c",
+    "taxonomy_size": 42,
+    "description": "Research benchmark for evaluating skill normalization, out-of-vocabulary semantic generalization, and resume skill extraction against NextAlloc canonical taxonomy.",
+    "splits": {
+      "in_vocabulary_sanity": 20,
+      "out_of_vocabulary_semantic": 20,
+      "negative_controls": 10,
+      "held_out_test": 10
+    }
+  },
+  "normalization_cases": [
+    {
+      "id": "INV-01",
+      "query": "Python",
+      "expected_canonical": "Python",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Exact canonical match"
+    },
+    {
+      "id": "INV-02",
+      "query": "Java",
+      "expected_canonical": "Java",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Exact canonical match"
+    },
+    {
+      "id": "INV-03",
+      "query": "SQL",
+      "expected_canonical": "SQL",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Exact canonical match"
+    },
+    {
+      "id": "INV-04",
+      "query": "Data Analysis",
+      "expected_canonical": "Data Analysis",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Exact canonical match"
+    },
+    {
+      "id": "INV-05",
+      "query": "Machine Learning",
+      "expected_canonical": "Machine Learning",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Exact canonical match"
+    },
+    {
+      "id": "INV-06",
+      "query": "python3",
+      "expected_canonical": "Python",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Known synonym match"
+    },
+    {
+      "id": "INV-07",
+      "query": "spring boot",
+      "expected_canonical": "Java",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Known synonym match"
+    },
+    {
+      "id": "INV-08",
+      "query": "mysql",
+      "expected_canonical": "SQL",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Known synonym match"
+    },
+    {
+      "id": "INV-09",
+      "query": "reactjs",
+      "expected_canonical": "React",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Known synonym match"
+    },
+    {
+      "id": "INV-10",
+      "query": "nodejs",
+      "expected_canonical": "Node.js",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Known synonym match"
+    },
+    {
+      "id": "INV-11",
+      "query": "frontend",
+      "expected_canonical": "Web Development",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Known synonym match"
+    },
+    {
+      "id": "INV-12",
+      "query": "aws",
+      "expected_canonical": "Cloud Computing",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Known synonym match"
+    },
+    {
+      "id": "INV-13",
+      "query": "docker",
+      "expected_canonical": "DevOps",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Known synonym match"
+    },
+    {
+      "id": "INV-14",
+      "query": "cyber security",
+      "expected_canonical": "Cybersecurity",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Known synonym match"
+    },
+    {
+      "id": "INV-15",
+      "query": "neural networks",
+      "expected_canonical": "Deep Learning",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Known synonym match"
+    },
+    {
+      "id": "INV-16",
+      "query": "natural language processing",
+      "expected_canonical": "NLP",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Known synonym match"
+    },
+    {
+      "id": "INV-17",
+      "query": "figma",
+      "expected_canonical": "UI/UX Design",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Known synonym match"
+    },
+    {
+      "id": "INV-18",
+      "query": "financial analysis",
+      "expected_canonical": "Finance",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Known synonym match"
+    },
+    {
+      "id": "INV-19",
+      "query": "public policy",
+      "expected_canonical": "Policy Analysis",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Known synonym match"
+    },
+    {
+      "id": "INV-20",
+      "query": "agile",
+      "expected_canonical": "Project Management",
+      "category": "in_vocabulary_sanity",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Known synonym match"
+    },
+
+    {
+      "id": "OOV-01",
+      "query": "PyTorch",
+      "expected_canonical": "Deep Learning",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Widely used deep learning framework not present in SYNONYMS"
+    },
+    {
+      "id": "OOV-02",
+      "query": "TensorFlow",
+      "expected_canonical": "Deep Learning",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Standard ML/DL framework"
+    },
+    {
+      "id": "OOV-03",
+      "query": "FastAPI",
+      "expected_canonical": "Python",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Modern high-performance Python web framework"
+    },
+    {
+      "id": "OOV-04",
+      "query": "Django",
+      "expected_canonical": "Python",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Standard Python web framework"
+    },
+    {
+      "id": "OOV-05",
+      "query": "TypeScript",
+      "expected_canonical": "JavaScript",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Superset of JavaScript ubiquitous in industry"
+    },
+    {
+      "id": "OOV-06",
+      "query": "Next.js",
+      "expected_canonical": "React",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Dominant React meta-framework"
+    },
+    {
+      "id": "OOV-07",
+      "query": "PostgreSQL",
+      "expected_canonical": "SQL",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Exact casing variation of postgres/sql"
+    },
+    {
+      "id": "OOV-08",
+      "query": "Pandas",
+      "expected_canonical": "Data Analysis",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Core Python data analysis library"
+    },
+    {
+      "id": "OOV-09",
+      "query": "NumPy",
+      "expected_canonical": "Data Analysis",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Core scientific computing library"
+    },
+    {
+      "id": "OOV-10",
+      "query": "Kubernetes",
+      "expected_canonical": "DevOps",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Container orchestration"
+    },
+    {
+      "id": "OOV-11",
+      "query": "Terraform",
+      "expected_canonical": "Cloud Computing",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Infrastructure as Code"
+    },
+    {
+      "id": "OOV-12",
+      "query": "REST API development",
+      "expected_canonical": "Web Development",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "API architectural pattern"
+    },
+    {
+      "id": "OOV-13",
+      "query": "Wireframing and prototyping",
+      "expected_canonical": "UI/UX Design",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Core UX design skill"
+    },
+    {
+      "id": "OOV-14",
+      "query": "Corporate Financial Modeling",
+      "expected_canonical": "Finance",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Financial specialization"
+    },
+    {
+      "id": "OOV-15",
+      "query": "Bookkeeping & General Ledger",
+      "expected_canonical": "Accounting",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Standard accounting practice"
+    },
+    {
+      "id": "OOV-16",
+      "query": "Statutory Compliance & Legal Drafting",
+      "expected_canonical": "Legal Research",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Legal practice specialization"
+    },
+    {
+      "id": "OOV-17",
+      "query": "Inventory Optimization & Logistics",
+      "expected_canonical": "Supply Chain",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Supply chain discipline"
+    },
+    {
+      "id": "OOV-18",
+      "query": "Environmental Impact Assessment",
+      "expected_canonical": "Environmental Science",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Environmental sustainability work"
+    },
+    {
+      "id": "OOV-19",
+      "query": "Clinical Trial Informatics",
+      "expected_canonical": "Healthcare Data",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Health data discipline"
+    },
+    {
+      "id": "OOV-20",
+      "query": "Copywriting and Technical Blogging",
+      "expected_canonical": "Content Writing",
+      "category": "out_of_vocabulary_semantic",
+      "provenance": "human_curated",
+      "split": "validation",
+      "notes": "Content domain"
+    },
+
+    {
+      "id": "NEG-01",
+      "query": "Baking artisan bread",
+      "expected_canonical": null,
+      "category": "negative_controls",
+      "provenance": "negative_control",
+      "split": "validation",
+      "notes": "Culinary hobby, non-internship skill"
+    },
+    {
+      "id": "NEG-02",
+      "query": "Vegetable gardening",
+      "expected_canonical": null,
+      "category": "negative_controls",
+      "provenance": "negative_control",
+      "split": "validation",
+      "notes": "Hobby, non-internship skill"
+    },
+    {
+      "id": "NEG-03",
+      "query": "Playing Cricket",
+      "expected_canonical": null,
+      "category": "negative_controls",
+      "provenance": "negative_control",
+      "split": "validation",
+      "notes": "Sports activity"
+    },
+    {
+      "id": "NEG-04",
+      "query": "Woodworking and carpentry",
+      "expected_canonical": null,
+      "category": "negative_controls",
+      "provenance": "negative_control",
+      "split": "validation",
+      "notes": "Craft, non-PMIS domain"
+    },
+    {
+      "id": "NEG-05",
+      "query": "Quantum flux capacitor",
+      "expected_canonical": null,
+      "category": "negative_controls",
+      "provenance": "negative_control",
+      "split": "validation",
+      "notes": "Fictional jargon"
+    },
+    {
+      "id": "NEG-06",
+      "query": "Guitar playing",
+      "expected_canonical": null,
+      "category": "negative_controls",
+      "provenance": "negative_control",
+      "split": "validation",
+      "notes": "Musical hobby"
+    },
+    {
+      "id": "NEG-07",
+      "query": "Dog training",
+      "expected_canonical": null,
+      "category": "negative_controls",
+      "provenance": "negative_control",
+      "split": "validation",
+      "notes": "Pet care"
+    },
+    {
+      "id": "NEG-08",
+      "query": "Astrology and Horoscopes",
+      "expected_canonical": null,
+      "category": "negative_controls",
+      "provenance": "negative_control",
+      "split": "validation",
+      "notes": "Pseudoscience"
+    },
+    {
+      "id": "NEG-09",
+      "query": "Automobile repair and tyre changing",
+      "expected_canonical": null,
+      "category": "negative_controls",
+      "provenance": "negative_control",
+      "split": "validation",
+      "notes": "Automotive mechanic task"
+    },
+    {
+      "id": "NEG-10",
+      "query": "Origami folding",
+      "expected_canonical": null,
+      "category": "negative_controls",
+      "provenance": "negative_control",
+      "split": "validation",
+      "notes": "Paper craft hobby"
+    },
+
+    {
+      "id": "HLD-01",
+      "query": "Scikit-Learn modeling",
+      "expected_canonical": "Machine Learning",
+      "category": "held_out_test",
+      "provenance": "human_curated",
+      "split": "held_out_test",
+      "notes": "Standard ML library for tabular data"
+    },
+    {
+      "id": "HLD-02",
+      "query": "Seaborn data plotting",
+      "expected_canonical": "Data Analysis",
+      "category": "held_out_test",
+      "provenance": "human_curated",
+      "split": "held_out_test",
+      "notes": "Statistical visualization library"
+    },
+    {
+      "id": "HLD-03",
+      "query": "Flutter mobile development",
+      "expected_canonical": "Web Development",
+      "category": "held_out_test",
+      "provenance": "human_curated",
+      "split": "held_out_test",
+      "notes": "Cross-platform application framework"
+    },
+    {
+      "id": "HLD-04",
+      "query": "Ansible automation",
+      "expected_canonical": "DevOps",
+      "category": "held_out_test",
+      "provenance": "human_curated",
+      "split": "held_out_test",
+      "notes": "Configuration management tool"
+    },
+    {
+      "id": "HLD-05",
+      "query": "Ethical Hacking & Penetration Testing",
+      "expected_canonical": "Cybersecurity",
+      "category": "held_out_test",
+      "provenance": "human_curated",
+      "split": "held_out_test",
+      "notes": "Security assessment"
+    },
+    {
+      "id": "HLD-06",
+      "query": "Talent Acquisition & Employee Onboarding",
+      "expected_canonical": "HR Management",
+      "category": "held_out_test",
+      "provenance": "human_curated",
+      "split": "held_out_test",
+      "notes": "Core human resources function"
+    },
+    {
+      "id": "HLD-07",
+      "query": "Corporate Tax Auditing",
+      "expected_canonical": "Accounting",
+      "category": "held_out_test",
+      "provenance": "human_curated",
+      "split": "held_out_test",
+      "notes": "Tax accounting"
+    },
+    {
+      "id": "HLD-08",
+      "query": "Urban Governance & Municipal Administration",
+      "expected_canonical": "Public Administration",
+      "category": "held_out_test",
+      "provenance": "human_curated",
+      "split": "held_out_test",
+      "notes": "Civic administration"
+    },
+    {
+      "id": "HLD-09",
+      "query": "Supply Chain Logistics & Warehouse Routing",
+      "expected_canonical": "Supply Chain",
+      "category": "held_out_test",
+      "provenance": "human_curated",
+      "split": "held_out_test",
+      "notes": "Logistics operations"
+    },
+    {
+      "id": "HLD-10",
+      "query": "HuggingFace Transformers",
+      "expected_canonical": "NLP",
+      "category": "held_out_test",
+      "provenance": "human_curated",
+      "split": "held_out_test",
+      "notes": "NLP model ecosystem"
+    }
+  ],
+  "resume_extraction_cases": [
+    {
+      "id": "RES-01",
+      "text": "Final year computer engineering student with 2 years of Python and SQL experience. Built predictive algorithms with PyTorch and deployed FastAPI backends on AWS EC2.",
+      "expected_canonical_skills": ["Python", "SQL", "Deep Learning", "Cloud Computing"],
+      "provenance": "synthetic_realistic",
+      "split": "validation"
+    },
+    {
+      "id": "RES-02",
+      "text": "Front-end developer proficient in React, TypeScript and Tailwind CSS. Built responsive web applications using Next.js and integrated with Node.js microservices.",
+      "expected_canonical_skills": ["React", "JavaScript", "HTML CSS", "Web Development", "Node.js"],
+      "provenance": "synthetic_realistic",
+      "split": "validation"
+    },
+    {
+      "id": "RES-03",
+      "text": "Data science enthusiast skilled in Pandas, NumPy and exploratory data analysis. Built business dashboards in Tableau and conducted statistical testing in Excel.",
+      "expected_canonical_skills": ["Data Analysis", "Tableau", "Statistics", "Excel"],
+      "provenance": "synthetic_realistic",
+      "split": "validation"
+    },
+    {
+      "id": "RES-04",
+      "text": "Experienced in Docker containerization, CI/CD pipeline automation and Kubernetes cluster orchestration across Google Cloud Platform.",
+      "expected_canonical_skills": ["DevOps", "Cloud Computing"],
+      "provenance": "synthetic_realistic",
+      "split": "validation"
+    },
+    {
+      "id": "RES-05",
+      "text": "Passionate about baking sourdough bread, playing classical piano, and weekend hiking in Himachal Pradesh.",
+      "expected_canonical_skills": [],
+      "provenance": "negative_control",
+      "split": "validation"
+    }
+  ]
+}
