@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types src/tests/academic_noc_contracts.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {

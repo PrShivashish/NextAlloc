@@ -97,3 +97,165 @@ export interface CandidateAllocation {
 }
 export interface ReadinessItem { key: string; label: string; maxScore: number; earned: number; status: string; detail: string; }
 export interface Readiness { overall: number; items: ReadinessItem[]; }
+
+// Phase 4A-2C: Academic and NOC Verification Types
+export type EnrollmentStatus =
+  | 'UNKNOWN'
+  | 'NOT_ENROLLED'
+  | 'ENROLLED_FULL_TIME'
+  | 'ENROLLED_DISTANCE_PART_TIME';
+
+export type FinalYearStatus =
+  | 'UNKNOWN'
+  | 'CLAIMED_FINAL_YEAR'
+  | 'VERIFIED_FINAL_YEAR'
+  | 'VERIFIED_NOT_FINAL_YEAR';
+
+export type EvidenceStatus =
+  | 'NOT_SUBMITTED'
+  | 'SUBMITTED'
+  | 'PENDING_ADDITIONAL_INFO'
+  | 'VERIFIED'
+  | 'REJECTED'
+  | 'EXPIRED';
+
+export type SignatoryRole =
+  | 'HEAD_OF_DEPARTMENT'
+  | 'DEAN'
+  | 'PRINCIPAL'
+  | 'TRAINING_AND_PLACEMENT_OFFICER'
+  | 'REGISTRAR'
+  | 'OTHER_UNRECOGNIZED';
+
+export type AcademicReviewDecision =
+  | 'APPROVE'
+  | 'REJECT'
+  | 'VERIFY_NOT_FINAL_YEAR';
+
+export interface CandidateAcademicDto {
+  id: number;
+  candidateId: number;
+  enrollmentStatus: EnrollmentStatus | string;
+  degreeProgram: string;
+  institutionName: string;
+  institutionAisheCode: string;
+  currentAcademicYear: number | null;
+  programDurationYears: number | null;
+  finalYearStatus: FinalYearStatus | string;
+  expectedCompletionDate: string | null;
+  updatedAt: string;
+  version: number;
+}
+
+export interface CandidateAcademicInput {
+  enrollmentStatus: EnrollmentStatus | string;
+  degreeProgram: string;
+  institutionName: string;
+  institutionAisheCode: string;
+  currentAcademicYear: number | null;
+  programDurationYears: number | null;
+  expectedCompletionDate: string | null;
+  expectedVersion?: number | null;
+}
+
+export interface NocEvidenceDto {
+  id: number;
+  candidateId: number;
+  evidenceType: string;
+  documentSha256: string;
+  issuingInstitution: string;
+  signatoryRole: SignatoryRole | string;
+  signatoryName: string;
+  signatoryEmail: string;
+  declaresNoAcademicConflict: boolean;
+  validFrom: string | null;
+  validUntil: string | null;
+  verificationStatus: EvidenceStatus | string;
+  verifiedAt: string | null;
+  verifiedByUserId: number | null;
+  rejectionReasonCode: string | null;
+  rejectionNotes: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NocReviewQueueItemDto {
+  id: number;
+  candidateId: number;
+  evidenceType: string;
+  documentSha256: string;
+  issuingInstitution: string;
+  signatoryRole: SignatoryRole | string;
+  signatoryName: string;
+  signatoryEmail: string;
+  declaresNoAcademicConflict: boolean;
+  validFrom: string | null;
+  validUntil: string | null;
+  verificationStatus: EvidenceStatus | string;
+  verifiedAt: string | null;
+  verifiedByUserId: number | null;
+  rejectionReasonCode: string | null;
+  rejectionNotes: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  candidateName: string;
+  candidateEmail: string;
+  candidatePhone: string;
+  academicEnrollmentStatus: EnrollmentStatus | string | null;
+  academicDegreeProgram: string | null;
+  academicInstitutionName: string | null;
+  academicInstitutionAisheCode: string | null;
+  academicFinalYearStatus: FinalYearStatus | string | null;
+  currentAcademicYear: number | null;
+  programDurationYears: number | null;
+  expectedCompletionDate: string | null;
+  signatoryValidationWarning: string | null;
+}
+
+export interface CandidateAcademicDetailDto {
+  id: number;
+  candidateId: number;
+  candidateName: string;
+  candidateEmail: string;
+  enrollmentStatus: EnrollmentStatus | string;
+  degreeProgram: string;
+  institutionName: string;
+  institutionAisheCode: string;
+  currentAcademicYear: number | null;
+  programDurationYears: number | null;
+  finalYearStatus: FinalYearStatus | string;
+  expectedCompletionDate: string | null;
+  updatedAt: string;
+  version: number;
+  activeNocEvidenceId: number | null;
+  activeNocStatus: string | null;
+}
+
+export interface AcademicReviewInput {
+  decision: AcademicReviewDecision;
+  notes: string;
+  supportingEvidenceId?: number | null;
+  expectedUpdatedAt?: string | null;
+  expectedVersion?: number | null;
+}
+
+export interface AcademicReviewResponseDto {
+  candidateId: number;
+  academicRecordId: number;
+  finalYearStatus: FinalYearStatus | string;
+  supportingEvidenceId: number | null;
+  reviewedAt: string;
+  reviewerName: string;
+  notes: string;
+  version: number;
+}
+
+export interface NocReviewDecisionInput {
+  expectedVersion?: number | null;
+  reasonCode?: string | null;
+  notes?: string | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
+}

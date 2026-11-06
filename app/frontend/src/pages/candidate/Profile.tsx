@@ -2,11 +2,21 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   User, GraduationCap, Wrench, Heart, ListOrdered, FileText, Plus, X, Save,
   Upload, SearchCheck, AlertTriangle, CheckCircle2, Sparkles, ShieldCheck,
+  Download, RefreshCw, Building2, Calendar, FileCheck,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
-import { apiGet, apiPost, apiPut, errMsg } from '../../api/client';
-import { ResumeSuggestionsView, Readiness } from '../../api/types';
+import { apiGet, apiPost, apiPut, apiDownload, errMsg } from '../../api/client';
+import {
+  ResumeSuggestionsView,
+  Readiness,
+  CandidateAcademicDto,
+  CandidateAcademicInput,
+  NocEvidenceDto,
+  EnrollmentStatus,
+  FinalYearStatus,
+  SignatoryRole,
+} from '../../api/types';
 import { SectionHeader, Callout, Badge, Spinner, fmtTime } from '../../components/ui';
 import { ScoreRing } from '../../components/ScoreRing';
 
@@ -26,6 +36,22 @@ const SECTOR_OPTIONS = [
   ['PUBLIC_ADMIN_POLICY', 'Public Administration & Policy'], ['HEALTHCARE_BIOTECH', 'Healthcare & Biotech'],
   ['MANUFACTURING_OPERATIONS', 'Manufacturing & Operations'], ['RESEARCH_DEVELOPMENT', 'Research & Development'],
   ['ENVIRONMENTAL_ENERGY', 'Environmental & Energy'],
+];
+
+const ENROLLMENT_OPTIONS: [string, string][] = [
+  ['ENROLLED_FULL_TIME', 'Enrolled Full-Time in College/University'],
+  ['ENROLLED_DISTANCE_PART_TIME', 'Enrolled in Distance / Part-Time Learning'],
+  ['NOT_ENROLLED', 'Not Currently Enrolled (Graduated / Discontinued)'],
+  ['UNKNOWN', 'Status Unspecified'],
+];
+
+const SIGNATORY_ROLES: [SignatoryRole, string][] = [
+  ['HEAD_OF_DEPARTMENT', 'Head of Department (HOD)'],
+  ['DEAN', 'Dean of Academic Affairs / College Dean'],
+  ['PRINCIPAL', 'College Principal / Head of Institution'],
+  ['TRAINING_AND_PLACEMENT_OFFICER', 'Training & Placement Officer (TPO)'],
+  ['REGISTRAR', 'University Registrar'],
+  ['OTHER_UNRECOGNIZED', 'Other College Authority'],
 ];
 // Labels match backend Labels.java — the same wording candidates see in lists and reports.
 const QUALS = [['HIGHER_SECONDARY', 'Higher Secondary'], ['BACHELORS', "Bachelor's Degree"], ['POST_GRADUATE', 'Postgraduate'], ['DOCTORAL', 'Doctoral']];
@@ -60,6 +86,37 @@ export default function CandidateProfile() {
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
 
+  // Academic Declaration State (Gate 2)
+  const [academic, setAcademic] = useState<CandidateAcademicDto | null>(null);
+  const [acadDraft, setAcadDraft] = useState({
+    enrollmentStatus: 'ENROLLED_FULL_TIME',
+    degreeProgram: '',
+    institutionName: '',
+    institutionAisheCode: '',
+    currentAcademicYear: '',
+    programDurationYears: '',
+    expectedCompletionDate: '',
+  });
+  const [savingAcademic, setSavingAcademic] = useState(false);
+  const [academicConflict, setAcademicConflict] = useState(false);
+  const [academicMsg, setAcademicMsg] = useState('');
+  const [academicErr, setAcademicErr] = useState('');
+
+  // Institutional NOC State (Gate 3)
+  const [noc, setNoc] = useState<NocEvidenceDto | null>(null);
+  const [showNocModal, setShowNocModal] = useState(false);
+  const [nocFile, setNocFile] = useState<File | null>(null);
+  const [nocIssuingInst, setNocIssuingInst] = useState('');
+  const [nocSignatoryName, setNocSignatoryName] = useState('');
+  const [nocSignatoryRole, setNocSignatoryRole] = useState<SignatoryRole>('HEAD_OF_DEPARTMENT');
+  const [nocSignatoryEmail, setNocSignatoryEmail] = useState('');
+  const [nocValidFrom, setNocValidFrom] = useState('');
+  const [nocValidUntil, setNocValidUntil] = useState('');
+  const [nocNoConflict, setNocNoConflict] = useState(false);
+  const [savingNoc, setSavingNoc] = useState(false);
+  const [nocMsg, setNocMsg] = useState('');
+  const [nocErr, setNocErr] = useState('');
+
   // Resume review state — keyed by resume id so a replacement resume can
   // never inherit (or submit) the previous file's accept/reject choices.
   const [reviewResumeId, setReviewResumeId] = useState<number | null>(null);
@@ -70,13 +127,15 @@ export default function CandidateProfile() {
 
   const load = async () => {
     try {
-      const [prof, pr, rs, o, rd] = await Promise.all([
+      const [prof, pr, rs, o, rd, acad, myNoc] = await Promise.all([
         apiGet<any>('/candidates/me/profile'),
         apiGet<any>('/candidates/me/preferences'),
         apiGet<any>('/candidates/me/resume').catch(() => null),
         // All statuses (incl. paused) so an existing preference always resolves its title.
         apiGet<any>('/opportunities', { page: 0, size: 100, availableOnly: false }).catch(() => null),
         apiGet<Readiness>('/candidates/me/readiness').catch(() => null),
+        apiGet<CandidateAcademicDto>('/candidates/me/academic').catch(() => null),
+        apiGet<NocEvidenceDto>('/candidates/me/evidence/noc').catch(() => null),
       ]);
       setP(prof);
       setSkills((prof.skills ?? []).map((s: any) => s.canonical));
@@ -90,6 +149,23 @@ export default function CandidateProfile() {
       })).sort((a: any, b: any) => a.rank - b.rank));
       setResume(rs ?? null);
       setReadiness(rd ?? null);
+
+      if (acad) {
+        setAcademic(acad);
+        setAcadDraft({
+          enrollmentStatus: String(acad.enrollmentStatus || 'ENROLLED_FULL_TIME'),
+          degreeProgram: acad.degreeProgram || '',
+          institutionName: acad.institutionName || '',
+          institutionAisheCode: acad.institutionAisheCode || '',
+          currentAcademicYear: acad.currentAcademicYear != null ? String(acad.currentAcademicYear) : '',
+          programDurationYears: acad.programDurationYears != null ? String(acad.programDurationYears) : '',
+          expectedCompletionDate: acad.expectedCompletionDate || '',
+        });
+        setNocIssuingInst(prev => prev || acad.institutionName || '');
+      }
+
+      setNoc(myNoc ?? null);
+
       if (rs && rs.status === 'PENDING_REVIEW') {
         apiGet<ResumeSuggestionsView>('/candidates/me/resume/suggestions')
           .then(s => setSugg(s))
@@ -145,6 +221,150 @@ export default function CandidateProfile() {
       setMsg('Profile details saved.'); await load();
     } catch (e) { setErr(errMsg(e)); }
     setSaving('');
+  };
+
+  const saveAcademic = async () => {
+    setSavingAcademic(true);
+    setAcademicMsg('');
+    setAcademicErr('');
+    setAcademicConflict(false);
+    try {
+      const input: CandidateAcademicInput = {
+        enrollmentStatus: acadDraft.enrollmentStatus,
+        degreeProgram: acadDraft.degreeProgram.trim(),
+        institutionName: acadDraft.institutionName.trim(),
+        institutionAisheCode: acadDraft.institutionAisheCode.trim(),
+        currentAcademicYear: acadDraft.currentAcademicYear === '' ? null : Number(acadDraft.currentAcademicYear),
+        programDurationYears: acadDraft.programDurationYears === '' ? null : Number(acadDraft.programDurationYears),
+        expectedCompletionDate: acadDraft.expectedCompletionDate || null,
+        expectedVersion: academic?.version ?? 0,
+      };
+
+      const updated = await apiPut<CandidateAcademicDto>('/candidates/me/academic', input);
+      setAcademic(updated);
+      setAcadDraft({
+        enrollmentStatus: String(updated.enrollmentStatus || 'ENROLLED_FULL_TIME'),
+        degreeProgram: updated.degreeProgram || '',
+        institutionName: updated.institutionName || '',
+        institutionAisheCode: updated.institutionAisheCode || '',
+        currentAcademicYear: updated.currentAcademicYear != null ? String(updated.currentAcademicYear) : '',
+        programDurationYears: updated.programDurationYears != null ? String(updated.programDurationYears) : '',
+        expectedCompletionDate: updated.expectedCompletionDate || '',
+      });
+      setAcademicMsg(`Academic declaration updated successfully (Record v${updated.version}). Status: ${updated.finalYearStatus}.`);
+    } catch (e: any) {
+      if (e.status === 409) {
+        setAcademicConflict(true);
+        setAcademicErr('Concurrency Conflict (HTTP 409): The academic record has been updated since this page was loaded (e.g. by an administrator review). To prevent overwriting newer authoritative data, your pending edits were not saved.');
+      } else {
+        setAcademicErr(errMsg(e));
+      }
+    } finally {
+      setSavingAcademic(false);
+    }
+  };
+
+  const refreshAcademic = async () => {
+    setAcademicConflict(false);
+    setAcademicErr('');
+    try {
+      const fresh = await apiGet<CandidateAcademicDto>('/candidates/me/academic');
+      setAcademic(fresh);
+      setAcadDraft({
+        enrollmentStatus: String(fresh.enrollmentStatus || 'ENROLLED_FULL_TIME'),
+        degreeProgram: fresh.degreeProgram || '',
+        institutionName: fresh.institutionName || '',
+        institutionAisheCode: fresh.institutionAisheCode || '',
+        currentAcademicYear: fresh.currentAcademicYear != null ? String(fresh.currentAcademicYear) : '',
+        programDurationYears: fresh.programDurationYears != null ? String(fresh.programDurationYears) : '',
+        expectedCompletionDate: fresh.expectedCompletionDate || '',
+      });
+      setAcademicMsg('Loaded latest academic record from server.');
+    } catch (e: any) {
+      setAcademicErr(errMsg(e));
+    }
+  };
+
+  const submitNoc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNocErr('');
+    setNocMsg('');
+
+    if (!nocFile) {
+      setNocErr('Please select a PDF document to upload.');
+      return;
+    }
+
+    if (!nocFile.name.toLowerCase().endsWith('.pdf') && nocFile.type !== 'application/pdf') {
+      setNocErr('Unsupported file format: NextAlloc accepts only PDF documents (.pdf) for institutional NOCs.');
+      return;
+    }
+
+    const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+    if (nocFile.size > MAX_SIZE) {
+      const sizeMb = (nocFile.size / (1024 * 1024)).toFixed(2);
+      setNocErr(`File exceeds limit: The selected file is ${sizeMb} MB. Institutional NOC uploads are strictly limited to 5.00 MB. Please compress your PDF.`);
+      return;
+    }
+
+    if (!nocIssuingInst.trim()) {
+      setNocErr('Issuing institution name is required.');
+      return;
+    }
+    if (!nocSignatoryName.trim()) {
+      setNocErr('Signatory authority name is required.');
+      return;
+    }
+    if (!nocSignatoryEmail.trim()) {
+      setNocErr('Signatory official email address is required.');
+      return;
+    }
+    if (!nocValidFrom || !nocValidUntil) {
+      setNocErr('Both NOC validity start date and end date are required.');
+      return;
+    }
+    if (nocValidUntil < nocValidFrom) {
+      setNocErr('Validity end date cannot precede the start date.');
+      return;
+    }
+    if (!nocNoConflict) {
+      setNocErr('You must declare that the internship does not conflict with regular coursework & exams.');
+      return;
+    }
+
+    setSavingNoc(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', nocFile);
+      fd.append('issuingInstitution', nocIssuingInst.trim());
+      fd.append('signatoryName', nocSignatoryName.trim());
+      fd.append('signatoryRole', nocSignatoryRole);
+      fd.append('signatoryEmail', nocSignatoryEmail.trim());
+      fd.append('declaresNoAcademicConflict', String(nocNoConflict));
+      fd.append('validFrom', nocValidFrom);
+      fd.append('validUntil', nocValidUntil);
+
+      const res = await apiPost<NocEvidenceDto>('/candidates/me/evidence/noc', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      setNoc(res);
+      setShowNocModal(false);
+      setNocFile(null);
+      setNocMsg(`Institutional NOC successfully submitted (ID #${res.id}). Current status: SUBMITTED (Pending administrator verification).`);
+    } catch (e: any) {
+      setNocErr(errMsg(e));
+    } finally {
+      setSavingNoc(false);
+    }
+  };
+
+  const downloadMyNoc = async () => {
+    try {
+      await apiDownload('/api/candidates/me/evidence/noc/download', 'my-institutional-noc.pdf');
+    } catch (e: any) {
+      setNocErr(errMsg(e));
+    }
   };
   const saveSkills = async () => {
     setSaving('skills'); setMsg(''); setErr('');
@@ -310,7 +530,450 @@ export default function CandidateProfile() {
         </div>
       </div>
 
-      {/* 2 · Education & experience */}
+      {/* 2 · Academic enrollment declaration (Gate 2) */}
+      <div id="academic-section" className="card p-5">
+        <SectionHeader
+          title="Academic enrollment declaration"
+          sub="Declare your college, degree, and study year. Server rules derive your standing; only authorized administrators grant verified final-year status upon validating your NOC."
+          right={
+            <div className="flex items-center gap-2">
+              <span className="chip bg-navy-50 text-navy-500 ring-1 ring-navy-100">
+                <Building2 className="h-3.5 w-3.5" /> academic profile
+              </span>
+              {academic && (
+                <span className="rounded-md bg-navy-100 px-2 py-0.5 text-xs font-mono font-semibold text-navy-700">
+                  Record v{academic.version}
+                </span>
+              )}
+            </div>
+          }
+        />
+
+        {academicErr && <Callout tone="danger">{academicErr}</Callout>}
+        {academicMsg && <Callout tone="success">{academicMsg}</Callout>}
+
+        {academicConflict && (
+          <div className="card my-3 border-amber-300 bg-amber-50 p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+              <div>
+                <div className="font-semibold text-amber-900">Academic Concurrency Conflict (HTTP 409)</div>
+                <p className="mt-1 text-xs text-amber-800">
+                  Your academic record was updated on the server (e.g. by administrative review or another session) since you loaded this page.
+                  To protect authoritative data, your pending edits were not saved.
+                </p>
+                <button onClick={refreshAcademic} className="btn-ghost btn-sm mt-2">
+                  <RefreshCw className="h-3.5 w-3.5" /> Refresh Latest Academic Record
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Status Banner */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-navy-50/70 p-3.5 ring-1 ring-navy-100">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs font-semibold text-navy-600">Verification Standing:</span>
+            <Badge
+              tone={
+                academic?.finalYearStatus === 'VERIFIED_FINAL_YEAR'
+                  ? 'green'
+                  : academic?.finalYearStatus === 'CLAIMED_FINAL_YEAR'
+                    ? 'amber'
+                    : academic?.finalYearStatus === 'VERIFIED_NOT_FINAL_YEAR'
+                      ? 'red'
+                      : 'gray'
+              }
+              dot
+            >
+              {academic?.finalYearStatus === 'VERIFIED_FINAL_YEAR'
+                ? 'VERIFIED FINAL YEAR — Cleared for Final-Year Opportunities'
+                : academic?.finalYearStatus === 'CLAIMED_FINAL_YEAR'
+                  ? 'CLAIMED FINAL YEAR — Pending Administrator NOC Verification'
+                  : academic?.finalYearStatus === 'VERIFIED_NOT_FINAL_YEAR'
+                    ? 'VERIFIED NOT FINAL YEAR — Ineligible for Final-Year Policy'
+                    : 'STANDING UNVERIFIED'}
+            </Badge>
+          </div>
+          <div className="text-[11.5px] text-navy-500">
+            {academic?.finalYearStatus === 'VERIFIED_FINAL_YEAR'
+              ? 'Institutional verification completed.'
+              : 'Submit your institutional NOC below for administrative review.'}
+          </div>
+        </div>
+
+        {/* Inputs */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <div>
+            <label className="label">Enrollment Status</label>
+            <select
+              className="input"
+              value={acadDraft.enrollmentStatus}
+              onChange={(e) => setAcadDraft(d => ({ ...d, enrollmentStatus: e.target.value }))}
+            >
+              {ENROLLMENT_OPTIONS.map(([val, lbl]) => (
+                <option key={val} value={val}>{lbl}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Institution Name</label>
+            <input
+              className="input"
+              value={acadDraft.institutionName}
+              onChange={(e) => setAcadDraft(d => ({ ...d, institutionName: e.target.value }))}
+              placeholder="e.g. National Institute of Technology"
+            />
+          </div>
+          <div>
+            <label className="label">Institution AISHE Code</label>
+            <input
+              className="input"
+              value={acadDraft.institutionAisheCode}
+              onChange={(e) => setAcadDraft(d => ({ ...d, institutionAisheCode: e.target.value }))}
+              placeholder="e.g. U-12345 or C-54321"
+            />
+          </div>
+          <div>
+            <label className="label">Degree Program</label>
+            <input
+              className="input"
+              value={acadDraft.degreeProgram}
+              onChange={(e) => setAcadDraft(d => ({ ...d, degreeProgram: e.target.value }))}
+              placeholder="e.g. B.Tech Computer Science"
+            />
+          </div>
+          <div>
+            <label className="label">Current Academic Year</label>
+            <input
+              className="input"
+              type="number"
+              min="1"
+              max="10"
+              value={acadDraft.currentAcademicYear}
+              onChange={(e) => setAcadDraft(d => ({ ...d, currentAcademicYear: e.target.value }))}
+              placeholder="e.g. 4"
+            />
+          </div>
+          <div>
+            <label className="label">Program Duration (Years)</label>
+            <input
+              className="input"
+              type="number"
+              min="1"
+              max="10"
+              value={acadDraft.programDurationYears}
+              onChange={(e) => setAcadDraft(d => ({ ...d, programDurationYears: e.target.value }))}
+              placeholder="e.g. 4"
+            />
+          </div>
+          <div className="md:col-span-3">
+            <label className="label">Expected Completion Date</label>
+            <input
+              className="input max-w-xs"
+              type="date"
+              value={acadDraft.expectedCompletionDate}
+              onChange={(e) => setAcadDraft(d => ({ ...d, expectedCompletionDate: e.target.value }))}
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-navy-100 pt-3">
+          <div className="text-[11.5px] text-navy-400">
+            Modifying institution, AISHE, year, or graduation date resets standing to Claimed/Unknown until re-verified.
+          </div>
+          <div className="flex gap-2">
+            <button
+              className="btn-primary"
+              onClick={saveAcademic}
+              disabled={savingAcademic}
+            >
+              <Save className="h-4 w-4" />
+              {savingAcademic ? 'Saving Declaration…' : 'Save Academic Declaration'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 3 · Institutional No Objection Certificate (Gate 3) */}
+      <div id="noc-section" className="card p-5">
+        <SectionHeader
+          title="Institutional No Objection Certificate (NOC)"
+          sub="Upload an official certificate from your college authority certifying that your internship does not conflict with classes or examinations."
+          right={
+            <span className="chip bg-navy-50 text-navy-500 ring-1 ring-navy-100">
+              <ShieldCheck className="h-3.5 w-3.5" /> institutional clearance
+            </span>
+          }
+        />
+
+        {nocErr && <Callout tone="danger">{nocErr}</Callout>}
+        {nocMsg && <Callout tone="success">{nocMsg}</Callout>}
+
+        {noc ? (
+          <div className="space-y-4">
+            {/* Active NOC Card */}
+            <div className="rounded-xl border border-navy-200 bg-white p-4 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-navy-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <FileText className="h-5 w-5 text-navy-600" />
+                  <div>
+                    <div className="text-sm font-bold text-ink">Active Institutional NOC (Evidence #{noc.id})</div>
+                    <div className="text-[11.5px] text-navy-400">Fingerprint: <span className="font-mono">{noc.documentSha256 ? noc.documentSha256.substring(0, 16) + '…' : '—'}</span></div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    tone={
+                      noc.verificationStatus === 'VERIFIED'
+                        ? 'green'
+                        : noc.verificationStatus === 'SUBMITTED'
+                          ? 'amber'
+                          : noc.verificationStatus === 'REJECTED'
+                            ? 'red'
+                            : 'amber'
+                    }
+                    dot
+                  >
+                    {noc.verificationStatus === 'VERIFIED'
+                      ? 'VERIFIED & APPROVED'
+                      : noc.verificationStatus === 'SUBMITTED'
+                        ? 'SUBMITTED — Pending Review'
+                        : noc.verificationStatus === 'REJECTED'
+                          ? 'REJECTED'
+                          : noc.verificationStatus === 'PENDING_ADDITIONAL_INFO'
+                            ? 'CLARIFICATION REQUESTED'
+                            : noc.verificationStatus}
+                  </Badge>
+                  <span className="rounded-md bg-navy-100 px-2 py-0.5 text-xs font-mono font-semibold text-navy-700">
+                    v{noc.version}
+                  </span>
+                </div>
+              </div>
+
+              {/* NOC Metadata */}
+              <div className="mt-3 grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <span className="font-semibold text-navy-500">Issuing Institution:</span>
+                  <div className="mt-0.5 font-medium text-ink">{noc.issuingInstitution}</div>
+                </div>
+                <div>
+                  <span className="font-semibold text-navy-500">Signatory Authority:</span>
+                  <div className="mt-0.5 font-medium text-ink">{noc.signatoryName} ({noc.signatoryRole})</div>
+                  <div className="text-[11px] text-navy-400">{noc.signatoryEmail}</div>
+                </div>
+                <div>
+                  <span className="font-semibold text-navy-500">Validity Period:</span>
+                  <div className="mt-0.5 font-medium text-ink">{noc.validFrom || '—'} to {noc.validUntil || '—'}</div>
+                </div>
+                <div>
+                  <span className="font-semibold text-navy-500">Conflict Certification:</span>
+                  <div className="mt-0.5 font-medium text-emerald-700">
+                    {noc.declaresNoAcademicConflict ? '✓ Certified no conflict' : '✗ Conflict declared'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Reviewer Feedback / Notes if Rejected or Clarification */}
+              {noc.verificationStatus === 'REJECTED' && (
+                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+                  <div className="font-semibold">Administrator Rejection Feedback:</div>
+                  <div className="mt-0.5">Reason: <strong>{noc.rejectionReasonCode || 'General rejection'}</strong></div>
+                  {noc.rejectionNotes && <div className="mt-1">Notes: {noc.rejectionNotes}</div>}
+                </div>
+              )}
+
+              {noc.verificationStatus === 'PENDING_ADDITIONAL_INFO' && (
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                  <div className="font-semibold">Clarification Requested by Administrator:</div>
+                  <div className="mt-0.5">{noc.rejectionNotes || 'Please upload an updated document clarifying dates or signatory authority.'}</div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-navy-100 pt-3">
+                <button
+                  onClick={downloadMyNoc}
+                  className="btn-ghost btn-sm"
+                  title="Download your active submitted NOC PDF"
+                >
+                  <Download className="h-4 w-4" /> Download Submitted PDF
+                </button>
+                <button
+                  onClick={() => setShowNocModal(true)}
+                  className="btn-primary btn-sm"
+                >
+                  <Upload className="h-4 w-4" /> Upload New Revision / Replace NOC
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-navy-200 bg-navy-50/50 p-8 text-center">
+            <FileText className="mx-auto h-8 w-8 text-navy-400" />
+            <div className="font-display mt-2 text-sm font-bold text-ink">No Institutional NOC On File</div>
+            <p className="mx-auto mt-1 max-w-md text-xs text-navy-500">
+              Upload a signed No Objection Certificate from your Dean, Principal, or Head of Department to qualify for internships requiring institutional clearance.
+            </p>
+            <button
+              onClick={() => setShowNocModal(true)}
+              className="btn-primary btn-sm mt-4"
+            >
+              <Upload className="h-4 w-4" /> Upload Institutional NOC (PDF)
+            </button>
+          </div>
+        )}
+
+        {/* Upload Modal / Form */}
+        {showNocModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4">
+            <div className="card w-full max-w-lg p-6 shadow-2xl">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-display text-lg font-bold text-ink">Upload Institutional NOC</h3>
+                  <p className="mt-0.5 text-xs text-navy-500">
+                    PDF format only · Maximum file size 5.00 MB
+                  </p>
+                </div>
+                <button onClick={() => setShowNocModal(false)} className="text-navy-400 hover:text-ink">
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={submitNoc} className="mt-4 space-y-3.5">
+                <div>
+                  <label className="label">NOC Document (PDF, max 5 MB) <span className="text-red-500">*</span></label>
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    className="input py-2 text-xs"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      if (f && f.size > 5 * 1024 * 1024) {
+                        setNocErr(`File exceeds limit: ${(f.size / (1024 * 1024)).toFixed(2)} MB is greater than the allowed 5 MB maximum.`);
+                        setNocFile(null);
+                      } else {
+                        setNocErr('');
+                        setNocFile(f);
+                      }
+                    }}
+                  />
+                  {nocFile && (
+                    <div className="mt-1 text-[11px] text-emerald-700">
+                      Selected: {nocFile.name} ({(nocFile.size / (1024 * 1024)).toFixed(2)} MB)
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="label">Issuing Institution <span className="text-red-500">*</span></label>
+                    <input
+                      className="input"
+                      value={nocIssuingInst}
+                      onChange={(e) => setNocIssuingInst(e.target.value)}
+                      placeholder="e.g. National Institute of Tech"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Signatory Role <span className="text-red-500">*</span></label>
+                    <select
+                      className="input"
+                      value={nocSignatoryRole}
+                      onChange={(e) => setNocSignatoryRole(e.target.value as SignatoryRole)}
+                    >
+                      {SIGNATORY_ROLES.map(([val, lbl]) => (
+                        <option key={val} value={val}>{lbl}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="label">Signatory Authority Name <span className="text-red-500">*</span></label>
+                    <input
+                      className="input"
+                      value={nocSignatoryName}
+                      onChange={(e) => setNocSignatoryName(e.target.value)}
+                      placeholder="e.g. Dr. Rajesh Kumar"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Signatory Official Email <span className="text-red-500">*</span></label>
+                    <input
+                      className="input"
+                      type="email"
+                      value={nocSignatoryEmail}
+                      onChange={(e) => setNocSignatoryEmail(e.target.value)}
+                      placeholder="e.g. dean@college.edu.in"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="label">Validity Start Date <span className="text-red-500">*</span></label>
+                    <input
+                      className="input"
+                      type="date"
+                      value={nocValidFrom}
+                      onChange={(e) => setNocValidFrom(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Validity End Date <span className="text-red-500">*</span></label>
+                    <input
+                      className="input"
+                      type="date"
+                      value={nocValidUntil}
+                      onChange={(e) => setNocValidUntil(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <label className="flex items-start gap-2.5 rounded-xl border border-navy-200 bg-navy-50/60 p-3 text-xs text-navy-800">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 rounded text-saffron-500"
+                    checked={nocNoConflict}
+                    onChange={(e) => setNocNoConflict(e.target.checked)}
+                    required
+                  />
+                  <span>
+                    <strong className="text-ink">No Academic Conflict Declaration:</strong> I hereby certify that participation in this internship does not conflict with mandatory coursework, exams, or institutional requirements, as endorsed by the signatory authority.
+                  </span>
+                </label>
+
+                <div className="mt-4 flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowNocModal(false)}
+                    className="btn-ghost btn-sm"
+                    disabled={savingNoc}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary btn-sm"
+                    disabled={savingNoc || !nocFile || !nocNoConflict}
+                  >
+                    {savingNoc ? 'Uploading NOC…' : 'Submit Certificate for Verification'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 4 · Education & experience */}
       <div className="card p-5">
         <SectionHeader title="Education & experience" right={<span className="chip bg-navy-50 text-navy-500 ring-1 ring-navy-100"><GraduationCap className="h-3.5 w-3.5" /> education</span>} />
         <div className="grid gap-4 md:grid-cols-3">
@@ -332,7 +995,7 @@ export default function CandidateProfile() {
         </div>
       </div>
 
-      {/* 3 · Skills */}
+      {/* 5 · Skills */}
       <div className="card p-5">
         <SectionHeader title="Skills" sub="Only recognised skills count toward eligibility — pick from the validated list." />
         <div className="flex flex-wrap gap-2">
@@ -356,7 +1019,7 @@ export default function CandidateProfile() {
         </div>
       </div>
 
-      {/* 4 · Interests */}
+      {/* 6 · Interests */}
       <div className="card p-5">
         <SectionHeader title="Interests" sub="Which sectors you are drawn to — helps the engine understand you." />
         <div className="flex flex-wrap gap-2">
@@ -375,7 +1038,7 @@ export default function CandidateProfile() {
         </div>
       </div>
 
-      {/* 5 · Preferences */}
+      {/* 7 · Preferences */}
       <div className="card p-5">
         <SectionHeader title="Opportunity preferences" sub="Your preferences help NextAlloc understand what you value. They do not override eligibility, capacity, or the global allocation." />
         {prefs.length === 0 ? (
@@ -427,7 +1090,7 @@ export default function CandidateProfile() {
         )}
       </div>
 
-      {/* 6 · Resume & profile autofill */}
+      {/* 8 · Resume & profile autofill */}
       <div className="card p-5">
         <SectionHeader title="Resume & profile autofill"
           sub="Upload a PDF or Word resume. NextAlloc finds your details and skills — you review every suggestion before anything is saved." />

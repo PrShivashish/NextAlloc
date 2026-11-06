@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import {
   GraduationCap, MapPin, Briefcase, CheckCircle2, Sparkles, ArrowRight,
   Clock, PartyPopper, Hourglass, ListChecks, Target, FlaskConical, Lightbulb,
+  ShieldCheck, FileText, Building2,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { apiGet, errMsg } from '../../api/client';
-import { CandidateAllocation, Readiness, Recommendation } from '../../api/types';
+import { CandidateAllocation, Readiness, Recommendation, CandidateAcademicDto, NocEvidenceDto } from '../../api/types';
 import { SectionHeader, Spinner, Callout, Badge, fmtNum, fmtTime } from '../../components/ui';
 import { ScoreRing } from '../../components/ScoreRing';
 
@@ -18,22 +19,28 @@ export default function CandidateHome() {
   const [actions, setActions] = useState<string[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [recs, setRecs] = useState<Recommendation[]>([]);
+  const [academic, setAcademic] = useState<CandidateAcademicDto | null>(null);
+  const [noc, setNoc] = useState<NocEvidenceDto | null>(null);
   const [err, setErr] = useState('');
 
   useEffect(() => {
     (async () => {
       try {
-        const [a, d, h, r] = await Promise.all([
+        const [a, d, h, r, acad, myNoc] = await Promise.all([
           apiGet<CandidateAllocation>('/candidates/me/allocation'),
           apiGet<any>('/candidates/me/dashboard'),
           apiGet<any>('/candidates/me/allocation/history'),
           apiGet<any>('/candidates/me/recommendations').catch(() => null),
+          apiGet<CandidateAcademicDto>('/candidates/me/academic').catch(() => null),
+          apiGet<NocEvidenceDto>('/candidates/me/evidence/noc').catch(() => null),
         ]);
         setAlloc(a);
         setReady(d.readiness ?? null);
         setActions(d.nextActions ?? d.actions ?? []);
         setHistory(h ?? []);
         setRecs(r?.items ?? []);
+        setAcademic(acad ?? null);
+        setNoc(myNoc ?? null);
       } catch (e) { setErr(errMsg(e)); }
     })();
   }, []);
@@ -116,6 +123,105 @@ export default function CandidateHome() {
             </button>
           </div>
         )}
+      </div>
+
+      {/* Institutional Clearance & Verification Governance Card */}
+      <div className="card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-navy-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <ShieldCheck className="h-5 w-5 text-saffron-600" />
+            <div>
+              <div className="font-display text-[15px] font-bold text-ink">Institutional Clearance & Eligibility Standing</div>
+              <div className="text-[12px] text-navy-500">
+                NextAlloc enforces deterministic rule gates: only policy-valid candidates enter CP-SAT multi-objective optimization.
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => nav('/candidate/profile')}
+            className="btn-ghost btn-sm"
+          >
+            Update Academic & NOC Details <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        <div className="mt-3.5 grid gap-4 sm:grid-cols-2">
+          {/* Academic Standing */}
+          <div className="rounded-xl bg-navy-50/60 p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-navy-500">Academic Declaration:</span>
+              <Badge
+                tone={
+                  academic?.finalYearStatus === 'VERIFIED_FINAL_YEAR'
+                    ? 'green'
+                    : academic?.finalYearStatus === 'CLAIMED_FINAL_YEAR'
+                      ? 'amber'
+                      : academic?.finalYearStatus === 'VERIFIED_NOT_FINAL_YEAR'
+                        ? 'red'
+                        : 'gray'
+                }
+                dot
+              >
+                {academic?.finalYearStatus === 'VERIFIED_FINAL_YEAR'
+                  ? 'VERIFIED FINAL YEAR'
+                  : academic?.finalYearStatus === 'CLAIMED_FINAL_YEAR'
+                    ? 'CLAIMED FINAL YEAR'
+                    : academic?.finalYearStatus === 'VERIFIED_NOT_FINAL_YEAR'
+                      ? 'VERIFIED NON-FINAL YEAR'
+                      : 'UNVERIFIED / INCOMPLETE'}
+              </Badge>
+            </div>
+            <div className="mt-2 text-xs text-navy-700">
+              {academic?.institutionName ? (
+                <>
+                  <div className="font-medium text-ink">{academic.institutionName}</div>
+                  <div className="text-[11px] text-navy-400">{academic.degreeProgram} · Year {academic.currentAcademicYear || '?'} of {academic.programDurationYears || '?'} (AISHE: {academic.institutionAisheCode || 'N/A'})</div>
+                </>
+              ) : (
+                <span className="text-navy-400 italic">No academic declaration recorded. Please declare your college & program.</span>
+              )}
+            </div>
+          </div>
+
+          {/* Institutional NOC */}
+          <div className="rounded-xl bg-navy-50/60 p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-navy-500">Institutional NOC:</span>
+              <Badge
+                tone={
+                  noc?.verificationStatus === 'VERIFIED'
+                    ? 'green'
+                    : noc?.verificationStatus === 'SUBMITTED'
+                      ? 'amber'
+                      : noc?.verificationStatus === 'REJECTED'
+                        ? 'red'
+                        : 'gray'
+                }
+                dot
+              >
+                {noc?.verificationStatus === 'VERIFIED'
+                  ? 'VERIFIED & APPROVED'
+                  : noc?.verificationStatus === 'SUBMITTED'
+                    ? 'SUBMITTED (Pending Review)'
+                    : noc?.verificationStatus === 'REJECTED'
+                      ? 'REJECTED (Action Required)'
+                      : noc?.verificationStatus === 'PENDING_ADDITIONAL_INFO'
+                        ? 'CLARIFICATION NEEDED'
+                        : 'NOT SUBMITTED'}
+              </Badge>
+            </div>
+            <div className="mt-2 text-xs text-navy-700">
+              {noc ? (
+                <>
+                  <div className="font-medium text-ink">{noc.issuingInstitution}</div>
+                  <div className="text-[11px] text-navy-400">Signed by {noc.signatoryName} ({noc.signatoryRole}) · Valid: {noc.validFrom || '—'} to {noc.validUntil || '—'}</div>
+                </>
+              ) : (
+                <span className="text-navy-400 italic">No institutional certificate on file. Upload a signed NOC from your institution.</span>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

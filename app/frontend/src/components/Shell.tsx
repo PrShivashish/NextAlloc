@@ -2,13 +2,14 @@ import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Database, History, FlaskConical, RefreshCcw, ScrollText, Compass, Cpu,
-  User, Briefcase, Building2, LogOut, Gauge,
+  User, Briefcase, Building2, LogOut, Gauge, ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { LogoMark } from './Logo';
 
 const ADMIN_NAV = [
   { to: '/admin', end: true, label: 'Command Center', icon: LayoutDashboard },
+  { to: '/admin/verification', label: 'Verification & NOCs', icon: ShieldCheck },
   { to: '/admin/scenarios', label: 'Scenarios & Dataset', icon: Database },
   { to: '/admin/runs', label: 'Allocation Runs', icon: History },
   { to: '/admin/whatif', label: 'Policy Lab (What-if)', icon: FlaskConical },
@@ -29,6 +30,7 @@ const PROV_NAV = [
 ];
 
 const TITLES: [string, string][] = [
+  ['/admin/verification', 'Verification & Governance'],
   ['/admin/scenarios', 'Scenarios & Dataset'], ['/admin/runs', 'Allocation Runs'], ['/admin/whatif', 'Policy Lab'],
   ['/admin/reallocation', 'Reallocation'], ['/admin/audit', 'Audit Trail'], ['/admin/judge', 'Judge Walkthrough'],
   ['/admin/technical', 'System Health'], ['/candidate/explore', 'Explore Opportunities'],

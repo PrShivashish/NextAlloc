@@ -13,6 +13,7 @@ import AdminReallocation from './pages/admin/Reallocation';
 import AdminAudit from './pages/admin/Audit';
 import AdminJudge from './pages/admin/Judge';
 import AdminTechnical from './pages/admin/Technical';
+import AdminVerification from './pages/admin/Verification';
 import CandidateHome from './pages/candidate/Home';
 import CandidateExplore from './pages/candidate/Explore';
 import CandidateAnalytics from './pages/candidate/Analytics';
@@ -41,6 +42,7 @@ export default function App() {
         <Route path="/admin/runs/:id" element={<Guard role="ADMIN"><AdminRunDetail /></Guard>} />
         <Route path="/admin/whatif" element={<Guard role="ADMIN"><AdminWhatIf /></Guard>} />
         <Route path="/admin/reallocation" element={<Guard role="ADMIN"><AdminReallocation /></Guard>} />
+        <Route path="/admin/verification" element={<Guard role="ADMIN"><AdminVerification /></Guard>} />
         <Route path="/admin/audit" element={<Guard role="ADMIN"><AdminAudit /></Guard>} />
         <Route path="/admin/judge" element={<Guard role="ADMIN"><AdminJudge /></Guard>} />
         <Route path="/admin/technical" element={<Guard role="ADMIN"><AdminTechnical /></Guard>} />
