@@ -18,7 +18,8 @@ public record CandidateAcademicDto(
         Integer programDurationYears,
         FinalYearStatus finalYearStatus,
         LocalDate expectedCompletionDate,
-        Instant updatedAt
+        Instant updatedAt,
+        Long version
 ) {
     public static CandidateAcademicDto from(CandidateAcademicRecord ar) {
         if (ar == null) return null;
@@ -33,7 +34,8 @@ public record CandidateAcademicDto(
                 ar.programDurationYears,
                 ar.finalYearStatus,
                 ar.expectedCompletionDate,
-                ar.updatedAt
+                ar.updatedAt,
+                ar.version
         );
     }
 }

@@ -30,6 +30,13 @@ public class GlobalExceptionHandler {
                         ex.getMessage(), requestId(), ex.getDetails()));
     }
 
+    @ExceptionHandler({org.springframework.dao.OptimisticLockingFailureException.class,
+                       jakarta.persistence.OptimisticLockException.class})
+    public ResponseEntity<ErrorDto> optimisticLockConflict(Exception ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorDto(409, "Conflict",
+                "The academic record was modified concurrently by another transaction. Please reload and try again.", requestId(), null));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorDto> validation(MethodArgumentNotValidException ex) {
         Map<String, Object> fields = new HashMap<>();

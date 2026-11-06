@@ -385,7 +385,7 @@ class EligibilityDataFoundationTest {
 
             // Step 5: Assert Flyway Schema History table state
             MigrationInfo[] history = controlledFlyway.info().applied();
-            assertEquals(3, history.length, "Flyway schema history must have 3 entries (Baseline + V2 + V3)");
+            assertEquals(4, history.length, "Flyway schema history must have 4 entries (Baseline + V2 + V3 + V4)");
             assertEquals("1", history[0].getVersion().getVersion());
             assertEquals("baseline schema", history[0].getDescription());
             assertEquals("BASELINE", history[0].getType().name());
@@ -399,6 +399,11 @@ class EligibilityDataFoundationTest {
             assertEquals("phase4a2c noc current submission", history[2].getDescription());
             assertEquals("SQL", history[2].getType().name());
             assertTrue(history[2].getState().isApplied());
+
+            assertEquals("4", history[3].getVersion().getVersion());
+            assertEquals("candidate academic record version", history[3].getDescription());
+            assertEquals("SQL", history[3].getType().name());
+            assertTrue(history[3].getState().isApplied());
 
             // Step 6: Verify Idempotence — calling migrate again does nothing
             int subsequentMigrations = controlledFlyway.migrate().migrationsExecuted;

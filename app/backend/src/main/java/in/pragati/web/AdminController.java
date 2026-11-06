@@ -22,8 +22,12 @@ import in.pragati.repo.*;
 import in.pragati.security.AuthUser;
 import in.pragati.service.*;
 import in.pragati.service.EvidenceService;
+import in.pragati.web.dto.AcademicReviewInput;
+import in.pragati.web.dto.AcademicReviewResponseDto;
+import in.pragati.web.dto.CandidateAcademicDetailDto;
 import in.pragati.web.dto.NocReviewDecisionInput;
 import in.pragati.web.dto.NocReviewQueueItemDto;
+import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -130,6 +134,7 @@ public class AdminController {
     private final AuditEventRepository auditEvents;
     private final SimulationRunRepository simulations;
     private final EvidenceService evidenceService;
+    private final CandidateAcademicVerificationService academicVerificationService;
     private final ObjectMapper json;
 
     public AdminController(OverviewService overview, ScenarioService scenarios,
@@ -142,6 +147,7 @@ public class AdminController {
                            GeoMetricRepository geoMetrics, ConflictMetricRepository conflicts,
                            OpportunityRepository opportunities, AuditEventRepository auditEvents,
                            SimulationRunRepository simulations, EvidenceService evidenceService,
+                           CandidateAcademicVerificationService academicVerificationService,
                            ObjectMapper json) {
         this.overview = overview; this.scenarios = scenarios; this.allocation = allocation;
         this.comparison = comparison; this.policy = policy; this.reallocation = reallocation;
@@ -150,6 +156,7 @@ public class AdminController {
         this.runs = runs; this.assignments = assignments; this.groupMetrics = groupMetrics;
         this.geoMetrics = geoMetrics; this.conflicts = conflicts; this.opportunities = opportunities;
         this.auditEvents = auditEvents; this.simulations = simulations; this.evidenceService = evidenceService;
+        this.academicVerificationService = academicVerificationService;
         this.json = json;
     }
 
@@ -574,6 +581,27 @@ public class AdminController {
                                                       @PathVariable("id") Long id,
                                                       @RequestBody(required = false) NocReviewDecisionInput decision) {
         return evidenceService.requestClarification(me, id, decision);
+    }
+
+    // ------------------------------------------------------------------
+    // Phase 4A-2C Commit 3B: Administrator Academic Verification
+    // ------------------------------------------------------------------
+
+    @GetMapping("/candidates/{candidateId}/academic")
+    @Operation(summary = "Get candidate academic record with supporting evidence for administrator review.")
+    public ResponseEntity<CandidateAcademicDetailDto> getCandidateAcademicAdmin(
+            @AuthenticationPrincipal AuthUser me,
+            @PathVariable("candidateId") Long candidateId) {
+        return ResponseEntity.ok(academicVerificationService.getCandidateAcademicDetail(me, candidateId));
+    }
+
+    @PostMapping("/candidates/{candidateId}/academic/verify")
+    @Operation(summary = "Authorized administrator review of candidate academic record.")
+    public ResponseEntity<AcademicReviewResponseDto> verifyCandidateAcademic(
+            @AuthenticationPrincipal AuthUser me,
+            @PathVariable("candidateId") Long candidateId,
+            @Valid @RequestBody AcademicReviewInput input) {
+        return ResponseEntity.ok(academicVerificationService.verifyCandidateAcademic(me, candidateId, input));
     }
 
 }

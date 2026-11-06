@@ -43,6 +43,7 @@ public class CandidateAcademicInput {
     public Integer programDurationYears;
 
     public LocalDate expectedCompletionDate;
+    public Long expectedVersion;
 
     public CandidateAcademicInput() {}
 
@@ -53,6 +54,18 @@ public class CandidateAcademicInput {
                                   Integer currentAcademicYear,
                                   Integer programDurationYears,
                                   LocalDate expectedCompletionDate) {
+        this(enrollmentStatus, degreeProgram, institutionName, institutionAisheCode,
+             currentAcademicYear, programDurationYears, expectedCompletionDate, null);
+    }
+
+    public CandidateAcademicInput(EnrollmentStatus enrollmentStatus,
+                                  String degreeProgram,
+                                  String institutionName,
+                                  String institutionAisheCode,
+                                  Integer currentAcademicYear,
+                                  Integer programDurationYears,
+                                  LocalDate expectedCompletionDate,
+                                  Long expectedVersion) {
         this.enrollmentStatus = enrollmentStatus;
         this.degreeProgram = degreeProgram;
         this.institutionName = institutionName;
@@ -60,6 +73,7 @@ public class CandidateAcademicInput {
         this.currentAcademicYear = currentAcademicYear;
         this.programDurationYears = programDurationYears;
         this.expectedCompletionDate = expectedCompletionDate;
+        this.expectedVersion = expectedVersion;
     }
 
     public EnrollmentStatus enrollmentStatus() { return enrollmentStatus; }
@@ -69,6 +83,7 @@ public class CandidateAcademicInput {
     public Integer currentAcademicYear() { return currentAcademicYear; }
     public Integer programDurationYears() { return programDurationYears; }
     public LocalDate expectedCompletionDate() { return expectedCompletionDate; }
+    public Long expectedVersion() { return expectedVersion; }
 
     @JsonAnySetter
     public void handleUnknown(String key, Object value) {

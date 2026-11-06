@@ -43,6 +43,10 @@ public class CandidateAcademicRecord {
 
     public LocalDate expectedCompletionDate;
 
+    @Version
+    @Column(nullable = false)
+    public Long version;
+
     @Column(nullable = false)
     public Instant updatedAt = Instant.now();
 
@@ -50,4 +54,3 @@ public class CandidateAcademicRecord {
         this.updatedAt = Instant.now();
     }
 }
-

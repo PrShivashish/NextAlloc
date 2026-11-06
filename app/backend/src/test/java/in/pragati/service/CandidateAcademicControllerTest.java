@@ -489,6 +489,7 @@ public class CandidateAcademicControllerTest {
                 .andExpect(jsonPath("$.finalYearStatus").value("CLAIMED_FINAL_YEAR"));
 
         // Re-establish verified status
+        verified = academicRepo.findByCandidateId(profile1.id).orElseThrow();
         verified.institutionName = "BITS Pilani";
         verified.finalYearStatus = FinalYearStatus.VERIFIED_FINAL_YEAR;
         academicRepo.save(verified);

@@ -94,6 +94,14 @@ public class CandidateAcademicService {
                     return newRec;
                 });
 
+        // Optimistic concurrency check for existing records
+        if (record.id != null && input.expectedVersion() != null) {
+            if (record.version != null && !record.version.equals(input.expectedVersion())) {
+                throw ApiException.conflict("Stale academic declaration: current version is "
+                        + record.version + ", expected " + input.expectedVersion() + ". Please reload the latest form before saving.");
+            }
+        }
+
         // Material equality check against existing persisted record
         String trimmedInstName = input.institutionName() != null ? input.institutionName().trim() : null;
         String trimmedAishe = input.institutionAisheCode() != null ? input.institutionAisheCode().trim() : null;
@@ -140,7 +148,7 @@ public class CandidateAcademicService {
         record.expectedCompletionDate = input.expectedCompletionDate();
         record.touch();
 
-        CandidateAcademicRecord saved = academicRepo.save(record);
+        CandidateAcademicRecord saved = academicRepo.saveAndFlush(record);
 
         audit.log(me, AuditAction.PROFILE_UPDATED, "CandidateAcademicRecord", String.valueOf(saved.id),
                 me.name() + " updated their academic declaration (status=" + derivedFinalYear + ").", null);
