@@ -1,0 +1,337 @@
+{
+  "metadata": {
+    "phase": "4B-1B",
+    "title": "Phase 4B-1B Final Corrected Skill Intelligence & Taxonomy Experiment",
+    "timestamp": "2026-11-06T08:57:44Z",
+    "environment": {
+      "python_version": "3.11.9",
+      "os": "Windows",
+      "processor": "AMD64 Family 25 Model 68 Stepping 1, AuthenticAMD"
+    },
+    "engine": {
+      "mode": "deterministic-taxonomy",
+      "canonical_count": 42,
+      "synonym_count": 89,
+      "related_concepts_catalog": 27,
+      "composite_labels_catalog": 2,
+      "out_of_scope_catalog": 14
+    }
+  },
+  "normalization_metrics": {
+    "total_queries": 60,
+    "overall_accuracy": 0.5333,
+    "category_breakdown": {
+      "in_vocabulary_sanity": {
+        "total": 20,
+        "correct": 20,
+        "accuracy": 1.0
+      },
+      "out_of_vocabulary_semantic": {
+        "total": 20,
+        "correct": 2,
+        "accuracy": 0.1
+      },
+      "negative_controls": {
+        "total": 10,
+        "correct": 10,
+        "accuracy": 1.0
+      },
+      "held_out_test": {
+        "total": 10,
+        "correct": 0,
+        "accuracy": 0.0
+      }
+    },
+    "microbenchmark_latency_ms": 1.95,
+    "microbenchmark_avg_latency_ms": 0.0325
+  },
+  "false_equivalence_adversarial_metrics": {
+    "adversarial_cases_tested": 16,
+    "false_equivalences_allowed": 0,
+    "false_equivalence_rate": 0.0,
+    "mandatory_eligibility_protected": true,
+    "test_details": [
+      {
+        "label": "k8s",
+        "target_domain": "DevOps",
+        "rationale": "tool abbreviation",
+        "relation_type": "RELATED_CONCEPT",
+        "related_domain": "DevOps",
+        "is_mandatory_eligible": false,
+        "strict_normalize": null,
+        "false_equivalence_prevented": true
+      },
+      {
+        "label": "ci/cd",
+        "target_domain": "DevOps",
+        "rationale": "engineering practice",
+        "relation_type": "RELATED_CONCEPT",
+        "related_domain": "DevOps",
+        "is_mandatory_eligible": false,
+        "strict_normalize": null,
+        "false_equivalence_prevented": true
+      },
+      {
+        "label": "ci cd",
+        "target_domain": "DevOps",
+        "rationale": "engineering practice",
+        "relation_type": "RELATED_CONCEPT",
+        "related_domain": "DevOps",
+        "is_mandatory_eligible": false,
+        "strict_normalize": null,
+        "false_equivalence_prevented": true
+      },
+      {
+        "label": "front-end",
+        "target_domain": "Web Development",
+        "rationale": "sub-discipline",
+        "relation_type": "RELATED_CONCEPT",
+        "related_domain": "Web Development",
+        "is_mandatory_eligible": false,
+        "strict_normalize": null,
+        "false_equivalence_prevented": true
+      },
+      {
+        "label": "back-end",
+        "target_domain": "Web Development",
+        "rationale": "sub-discipline",
+        "relation_type": "RELATED_CONCEPT",
+        "related_domain": "Web Development",
+        "is_mandatory_eligible": false,
+        "strict_normalize": null,
+        "false_equivalence_prevented": true
+      },
+      {
+        "label": "backend",
+        "target_domain": "Web Development",
+        "rationale": "sub-discipline",
+        "relation_type": "RELATED_CONCEPT",
+        "related_domain": "Web Development",
+        "is_mandatory_eligible": false,
+        "strict_normalize": null,
+        "false_equivalence_prevented": true
+      },
+      {
+        "label": "tally",
+        "target_domain": "Accounting",
+        "rationale": "software tool",
+        "relation_type": "RELATED_CONCEPT",
+        "related_domain": "Accounting",
+        "is_mandatory_eligible": false,
+        "strict_normalize": null,
+        "false_equivalence_prevented": true
+      },
+      {
+        "label": "c/c++",
+        "target_domain": "C++",
+        "rationale": "composite multi-language",
+        "relation_type": "COMPOSITE_LABEL",
+        "related_domain": "C++",
+        "is_mandatory_eligible": false,
+        "strict_normalize": null,
+        "false_equivalence_prevented": true
+      },
+      {
+        "label": "PyTorch",
+        "target_domain": "Deep Learning",
+        "rationale": "library to domain",
+        "relation_type": "RELATED_CONCEPT",
+        "related_domain": "Deep Learning",
+        "is_mandatory_eligible": false,
+        "strict_normalize": null,
+        "false_equivalence_prevented": true
+      },
+      {
+        "label": "TensorFlow",
+        "target_domain": "Deep Learning",
+        "rationale": "library to domain",
+        "relation_type": "RELATED_CONCEPT",
+        "related_domain": "Deep Learning",
+        "is_mandatory_eligible": false,
+        "strict_normalize": null,
+        "false_equivalence_prevented": true
+      },
+      {
+        "label": "FastAPI",
+        "target_domain": "Python",
+        "rationale": "framework to language",
+        "relation_type": "RELATED_CONCEPT",
+        "related_domain": "Python",
+        "is_mandatory_eligible": false,
+        "strict_normalize": null,
+        "false_equivalence_prevented": true
+      },
+      {
+        "label": "Django",
+        "target_domain": "Python",
+        "rationale": "framework to language",
+        "relation_type": "RELATED_CONCEPT",
+        "related_domain": "Python",
+        "is_mandatory_eligible": false,
+        "strict_normalize": null,
+        "false_equivalence_prevented": true
+      },
+      {
+        "label": "TypeScript",
+        "target_domain": "JavaScript",
+        "rationale": "related languages",
+        "relation_type": "RELATED_CONCEPT",
+        "related_domain": "JavaScript",
+        "is_mandatory_eligible": false,
+        "strict_normalize": null,
+        "false_equivalence_prevented": true
+      },
+      {
+        "label": "Next.js",
+        "target_domain": "React",
+        "rationale": "framework to library",
+        "relation_type": "RELATED_CONCEPT",
+        "related_domain": "React",
+        "is_mandatory_eligible": false,
+        "strict_normalize": null,
+        "false_equivalence_prevented": true
+      },
+      {
+        "label": "Pandas",
+        "target_domain": "Data Analysis",
+        "rationale": "library to domain",
+        "relation_type": "RELATED_CONCEPT",
+        "related_domain": "Data Analysis",
+        "is_mandatory_eligible": false,
+        "strict_normalize": null,
+        "false_equivalence_prevented": true
+      },
+      {
+        "label": "Scikit-Learn",
+        "target_domain": "Machine Learning",
+        "rationale": "library to domain",
+        "relation_type": "RELATED_CONCEPT",
+        "related_domain": "Machine Learning",
+        "is_mandatory_eligible": false,
+        "strict_normalize": null,
+        "false_equivalence_prevented": true
+      }
+    ]
+  },
+  "resume_extraction_metrics": {
+    "macro_precision": 1.0,
+    "macro_recall": 0.86,
+    "macro_f1": 0.9206,
+    "microbenchmark_latency_ms": 1.48,
+    "sample_details": [
+      {
+        "id": "RES-01",
+        "expected": [
+          "Python",
+          "SQL",
+          "Deep Learning",
+          "Cloud Computing"
+        ],
+        "predicted": [
+          "Cloud Computing",
+          "Python",
+          "SQL"
+        ],
+        "precision": 1.0,
+        "recall": 0.75,
+        "f1": 0.8571
+      },
+      {
+        "id": "RES-02",
+        "expected": [
+          "React",
+          "JavaScript",
+          "HTML CSS",
+          "Web Development",
+          "Node.js"
+        ],
+        "predicted": [
+          "HTML CSS",
+          "JavaScript",
+          "Node.js",
+          "React"
+        ],
+        "precision": 1.0,
+        "recall": 0.8,
+        "f1": 0.8889
+      },
+      {
+        "id": "RES-03",
+        "expected": [
+          "Data Analysis",
+          "Tableau",
+          "Statistics",
+          "Excel"
+        ],
+        "predicted": [
+          "Data Analysis",
+          "Excel",
+          "Tableau"
+        ],
+        "precision": 1.0,
+        "recall": 0.75,
+        "f1": 0.8571
+      },
+      {
+        "id": "RES-04",
+        "expected": [
+          "DevOps",
+          "Cloud Computing"
+        ],
+        "predicted": [
+          "Cloud Computing",
+          "DevOps"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "id": "RES-05",
+        "expected": [],
+        "predicted": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      }
+    ]
+  },
+  "out_of_scope_sector_analysis": {
+    "total_uncovered_occupational_skills_cataloged": 14,
+    "sectors_represented": {
+      "Horticulture & Agriculture": [
+        "gardening"
+      ],
+      "Sports & Physical Education": [
+        "cricket"
+      ],
+      "Food Processing & Culinary": [
+        "baking",
+        "food safety"
+      ],
+      "Hospitality & Culinary": [
+        "culinary arts"
+      ],
+      "Manufacturing & Fabrication": [
+        "welding"
+      ],
+      "Manufacturing & Operations": [
+        "cnc machining",
+        "lathe operation"
+      ],
+      "Construction & Infrastructure": [
+        "carpentry"
+      ],
+      "Agriculture & Rural Development": [
+        "crop agronomy",
+        "soil testing",
+        "irrigation management"
+      ],
+      "Healthcare Clinical": [
+        "phlebotomy",
+        "nursing care"
+      ]
+    },
+    "reporting": "Legitimate non-software skills (gardening, cricket, baking, welding, etc.) are correctly identified as taxonomy gaps rather than dismissed as universally invalid."
+  }
+}
