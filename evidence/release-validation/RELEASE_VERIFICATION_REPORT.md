@@ -1,15 +1,16 @@
 # NEXTALLOC (SIH25033) — FINAL RELEASE VERIFICATION & AUDIT REPORT
 
-**Date:** 2026-11-10  
-**Evaluator Role:** Integrated Engineering Team (AI/ML Optimization, Spring Boot Architect, PostgreSQL DBA, Frontend Lead, Security & Release Lead)  
-**Workspace:** `C:\Users\shiva\Programming Projects\NextAlloc-PatchLab`  
-**Base Commit Tested:** `232b20d5e1bcf680be704cdf6eb0ba20c6f08b75`  
-**Release Tag:** `nextalloc-sih-demo-2026-11-10` (`232b20d5e1bcf680be704cdf6eb0ba20c6f08b75`)  
+**Date:** 2026-11-10<br>
+**Evaluator Role:** Integrated Engineering Team (AI/ML Optimization Lead, Spring Boot Architect, PostgreSQL Database Architect, React/TypeScript Frontend Lead, Application Security & Release Lead)<br>
+**Workspace:** `C:\Users\shiva\Programming Projects\NextAlloc-PatchLab`<br>
+**Base Commit Tested:** `232b20d5e1bcf680be704cdf6eb0ba20c6f08b75`<br>
+**Baseline Release Tag:** `nextalloc-sih-demo-2026-11-10` (`232b20d5e1bcf680be704cdf6eb0ba20c6f08b75` - PRESERVED)<br>
+**Final Release Tag:** `nextalloc-sih-demo-final-2026-11-10`
 **Target Environments:**
 - Demonstration Instance: `http://127.0.0.1:8086` (Unmodified, healthy, UP)
 - AI Optimization Service: `http://127.0.0.1:8000` / `http://127.0.0.1:8001` (UP)
 - Isolated QA Test Instance: `http://127.0.0.1:8088` (UP)
-- Native PostgreSQL 16: `localhost:5439` (Docker container `nextalloc-test-pg`)
+- Native PostgreSQL 16: `localhost:5439` (Docker container `nextalloc-test-pg`, CERTIFIED)
 
 ---
 
@@ -18,11 +19,11 @@
 ```
 ========================================================================================
 FINAL VERIFICATION RESULT:
-NEXTALLOC FINAL RELEASE VERIFICATION — DEMO GO / PRODUCTION NOT CERTIFIED
+NEXTALLOC LOCAL SIH RELEASE — FINAL GO
 ========================================================================================
 ```
 
-The NextAlloc AI-powered internship allocation engine has undergone autonomous sequential verification across Gates 0 through 7.
+The NextAlloc AI-powered internship allocation engine has undergone full sequential release verification across Gates 0 through 7.
 
 ### Key Certifications:
 1. **Local Demonstration Readiness (`DEMO GO`):**
@@ -31,10 +32,16 @@ The NextAlloc AI-powered internship allocation engine has undergone autonomous s
    - Global CP-SAT optimization, multi-round reallocations with conflict diffing, academic/NOC verification, strict taxonomy isolation, and role-based access control operate truthfully.
    - Candidate offer acceptance and employer joining lifecycles are durable, verified, and protected against race conditions.
 
-2. **Production Database Certification Status (`PRODUCTION NOT CERTIFIED`):**
-   - **PostgreSQL 16 Schema & Migrations:** Flyway migrations V1 through V7 apply cleanly to native PostgreSQL 16 on `localhost:5439`. Foreign keys, unique constraints, and pessimistic `SELECT ... FOR UPDATE` locks are verified at the DDL/SQL level via Python/psycopg2.
-   - **Spring Boot Runtime Driver Disclosure:** `app/backend/pom.xml` packages `com.h2database:h2` and `com.mysql:mysql-connector-j`, but does **not** include the `org.postgresql:postgresql` runtime JDBC driver. Consequently, the live Spring Boot application runs against in-memory H2 (`jdbc:h2:mem:pragati`).
-   - In accordance with architectural honesty requirements, the production environment is **not certified** for native PostgreSQL deployment until the JDBC driver dependency is packaged into `pom.xml` and validated through end-to-end Spring Data JPA container runs.
+2. **Native PostgreSQL Certification (`CERTIFIED`):**
+   - **PostgreSQL 16 Schema & Migrations:** Flyway migrations V1 through V7 apply cleanly to native PostgreSQL 16 on `localhost:5439`.
+   - **Packaged JVM Driver & Flyway Support:** `app/backend/pom.xml` packages official `org.postgresql:postgresql:42.7.4` and `org.flywaydb:flyway-database-postgresql:10.20.1` dependencies.
+   - **Spring Data JPA Concurrency Test:** `PostgresOfferLifecycleConcurrencyTest` executes against `jdbc:postgresql://localhost:5439/test_db_spring`, verifying native `SELECT ... FOR UPDATE` pessimistic locks, schema migrations, and active-placement rejection on real PostgreSQL 16.
+   - **Live Demo Runtime:** Operates on in-memory H2 (`jdbc:h2:mem:pragati;MODE=PostgreSQL`) for standalone zero-dependency evaluation.
+
+3. **Security Configuration Verdict (`RESTORED & ISOLATED`):**
+   - Restored production login rate-limiter threshold to strict default (8 requests/min): `login-per-minute: ${PRAGATI_RATE_LIMIT_LOGIN_PER_MINUTE:8}`.
+   - Automated browser test overrides are strictly isolated to test environments (`PRAGATI_RATE_LIMIT_LOGIN_PER_MINUTE=120`).
+   - Verified via dedicated unit test `LoginRateLimitFilterTest` (3 tests passed).
 
 ---
 
@@ -42,16 +49,16 @@ The NextAlloc AI-powered internship allocation engine has undergone autonomous s
 
 | Gate | Category | Scope / Focus | Status | Evidence / Metrics |
 | :--- | :--- | :--- | :--- | :--- |
-| **Gate 0** | Source & Preflight | Git HEAD, branch, tag, toolchains, service health | **PASSED** | Branch `fix/allocator-correctness-lab`, tag preserved at `232b20d`, Java 17 Temurin, Maven 3.9.14, Python 3.11.9, Node v22.11.0. |
+| **Gate 0** | Source & Preflight | Git HEAD, branch, tag, toolchains, service health | **PASSED** | Branch `fix/allocator-correctness-lab`, baseline tag preserved at `232b20d`, Java 17 Temurin, Maven 3.9.14, Python 3.11.9, Node v22.11.0. All 4 environments UP. |
 | **Gate 1** | Concurrency & Race Integrity | Real multi-thread barrier: cross-run acceptance, seat contention, repeated declines | **PASSED** | `OfferLifecycleConcurrencyTest`: 9/9 passed. Strict lock order `CandidateProfile` -> `Offer` -> `Opportunity`. Zero double-bookings. |
-| **Gate 2** | Native PostgreSQL 16 | Flyway V1-V7 migrations, table DDL, row locking | **PARTIALLY CERTIFIED** | PostgreSQL 16 DDL/migrations 100% verified on port 5439. Spring Boot runtime uses H2 due to absent `org.postgresql` JDBC driver in pom.xml. |
-| **Gate 3A** | Backend Regression | Complete JUnit / Spring Boot test suite | **PASSED** | 310 tests run, 0 failures, 0 errors, 0 skipped across 28 test classes. |
+| **Gate 2** | Native PostgreSQL 16 | Flyway V1-V7 migrations, table DDL, Spring Data JPA row locking | **CERTIFIED** | PostgreSQL 16 DDL/migrations 100% verified via Python & Spring Boot `PostgresOfferLifecycleConcurrencyTest` on port 5439. `org.postgresql` JDBC driver & `flyway-database-postgresql` packaged in `pom.xml`. |
+| **Gate 3A** | Backend Regression | Complete JUnit / Spring Boot test suite | **PASSED** | 314 tests run, 0 failures, 0 errors, 0 skipped across 30 test classes. |
 | **Gate 3B** | AI / NLP Regression | Dual-lane verification: active runtime & pinned benchmark | **PASSED** | 52 tests run: Lane 1 (active runtime) 50/50 passed; Lane 2 (pinned benchmark at `24aa965`) 2/2 passed. |
-| **Gate 3C** | Frontend Regression | TypeScript types, component contracts, production build | **PASSED** | `tsc` 0 errors, Vitest 9/9 contracts passed, Vite build succeeded in 8.8s (1,024 kB bundle). |
-| **Gate 4** | Real Browser E2E | Playwright browser automation against isolated instance | **PASSED** | 6 Journeys (A through F) passed cleanly. 11 visual screenshots verified. |
-| **Gate 5** | Unified Verification Runner | Reproducible PowerShell execution script | **PASSED** | `scripts/verify-nextalloc-release.ps1` supports `-PreflightOnly` and `-Full`. |
+| **Gate 3C** | Frontend Regression | TypeScript types, component contracts, production build | **PASSED** | `tsc` 0 errors, Vitest 9/9 contracts passed, Vite build succeeded (1,024.99 kB bundle). |
+| **Gate 4** | Real Browser E2E | Playwright browser automation against isolated instance | **PASSED** | 6 Journeys (A through F) passed cleanly on port 8088. 11 visual screenshots verified. |
+| **Gate 5** | Unified Verification Runner | Reproducible PowerShell execution script | **PASSED** | `scripts/verify-nextalloc-release.ps1` supports `-PreflightOnly` and `-Full` and exits with code 0. |
 | **Gate 6** | Audit Report & Script | Comprehensive documentation & SIH demo script | **PASSED** | Documented in this report with exact command traces. |
-| **Gate 7** | Atomic Commit & Release Tag | Source changes and QA evidence preserved | **READY** | Tag `nextalloc-sih-demo-2026-11-10` intact; new verification commits staged. |
+| **Gate 7** | Atomic Commit & Release Tag | Source changes and QA evidence preserved | **READY** | Baseline tag `nextalloc-sih-demo-2026-11-10` untouched; new annotated tag `nextalloc-sih-demo-final-2026-11-10` created. |
 
 ---
 
@@ -88,11 +95,11 @@ The original offer acceptance endpoint verified uniqueness only within the scope
 | Dimension | Demonstration Runtime (Port 8086 / 8088) | Native PostgreSQL 16 Target (Port 5439) |
 | :--- | :--- | :--- |
 | **Engine** | H2 In-Memory (`jdbc:h2:mem:pragati;MODE=PostgreSQL`) | PostgreSQL 16.4 Container (`nextalloc-test-pg`) |
-| **DDL Migrations** | Flyway V1 through V7 executed on Spring Boot startup | Flyway V1 through V7 applied and verified via Python |
+| **DDL Migrations** | Flyway V1 through V7 executed on Spring Boot startup | Flyway V1 through V7 applied and verified via Spring Boot & Python |
 | **Constraints** | Foreign keys, unique constraints on `(run_id, candidate_id)` | Native constraints, composite indices, cascading deletes |
-| **Concurrency Locking** | H2 row-level locks via Spring Data JPA | Native `SELECT ... FOR UPDATE` verified via `psycopg2` |
-| **JVM JDBC Driver** | Included (`com.h2database:h2:2.2.224`) | **Absent** (`org.postgresql:postgresql` missing from `pom.xml`) |
-| **Certification Status** | **CERTIFIED FOR LIVE SIH DEMONSTRATION** | **PARTIALLY CERTIFIED (DDL Verified; JVM Runtime Pending)** |
+| **Concurrency Locking** | H2 row-level locks via Spring Data JPA | Native `SELECT ... FOR UPDATE` verified via JPA & `psycopg2` |
+| **JVM JDBC Driver** | Included (`com.h2database:h2`) | Packaged (`org.postgresql:postgresql:42.7.4` & `flyway-database-postgresql:10.20.1`) |
+| **Certification Status** | **CERTIFIED FOR LIVE SIH DEMONSTRATION** | **CERTIFIED VIA SPRING DATA JPA TEST ON PORT 5439** |
 
 ---
 
@@ -103,48 +110,39 @@ Automated via Playwright against isolated instance `http://127.0.0.1:8088`:
 | Journey | User Scenario | Actions Executed in Browser | Result | Key Evidence Snapshot |
 | :--- | :--- | :--- | :--- | :--- |
 | **A** | Full Allocation Lifecycle | Candidate login -> Academic declaration -> NOC upload -> Admin verification -> Candidate ranks Opportunity 103 -> Admin runs allocation -> Candidate accepts seat -> Employer confirms joining | **PASSED** | `06_candidate_offer_accepted.png`, `09_provider_joining_confirmed.png` |
-| **B** | Decline & Safe Reallocation | Candidate 2 withdrawn -> Reallocation run #7 created -> Movement diff computed -> Candidate 1 joined seat preserved | **PASSED** | `10_reallocation_movements.png` |
+| **B** | Decline & Safe Reallocation | Candidate 2 withdrawn -> Reallocation run #2 created -> Movement diff computed -> Candidate 1 joined seat preserved | **PASSED** | `10_reallocation_movements.png` |
 | **C** | Strict Mandatory Eligibility | Candidate with Spring Boot but no Java evaluated against Java requirement | **PASSED** | Candidate evaluated as strictly INELIGIBLE; zero semantic leakage |
 | **D** | Truthful Infeasibility Handling | Full-coverage policy run executed where demand > capacity | **PASSED** | Status reported truthfully as INFEASIBLE; 0 assignments published (`11_infeasible_run_truthful.png`) |
-| **E** | Multi-Run Inventory Isolation | Run #6 and Reallocation Run #7 ledgers inspected | **PASSED** | Separate immutable ledgers; independent offer tracking |
+| **E** | Multi-Run Inventory Isolation | Run #1 and Reallocation Run #2 ledgers inspected | **PASSED** | Separate immutable ledgers; independent offer tracking |
 | **F** | Authorization Boundaries | Candidate, Provider, Unauthenticated requests to restricted endpoints | **PASSED** | HTTP 401/403 enforced across all security perimeters |
 
 ---
 
-## 6. FIVE-MINUTE SIH PRESENTATION SCRIPT
+## 6. THREE-MINUTE SIH JURY PRESENTATION SCRIPT
 
-### [0:00 - 0:45] Minute 1: The Problem & The Core Guarantee
-- **Visual:** Open `http://127.0.0.1:8086/login`.
-- **Narrative:** "Respected Jury, internship allocation at national scale cannot be handled on a first-come, first-served basis or by greedy matching algorithms. When candidates are processed sequentially, strong candidates lock early seats, creating massive sub-optimality and unfairness. NextAlloc solves this globally using Google OR-Tools CP-SAT with lexicographic multi-objective optimization: we maximize feasible allocations first, then optimize preference, equity, and skill fit simultaneously across the entire population."
+### [0:00 - 1:00] Minute 1: The Core Problem & Mathematical Guarantee
+- **Visual:** Open `http://127.0.0.1:8086/login`. Sign in as Candidate (`candidate@nextalloc.in`).
+- **Narrative:** "Respected Jury, national-scale internship allocation cannot rely on first-come, first-served or greedy heuristics, which lock seats prematurely and leave hundreds of students sub-optimally placed. NextAlloc solves this globally using Google OR-Tools CP-SAT with lexicographic multi-objective optimization. Here on the candidate profile, notice our trust architecture: Aarav Sharma has verified academic records and an institutional NOC. Under our NLP taxonomy, 'Spring Boot' is mapped as related to Java, but our engine strictly enforces that related skills never bypass mandatory requirements. Eligibility remains an unbreachable constraint."
 
-### [0:45 - 1:45] Minute 2: Candidate Readiness & Verification Trust
-- **Visual:** Sign in as Candidate (`candidate@nextalloc.in` -> quick login). Show `/candidate/profile`.
-- **Narrative:** "Notice our candidate, Aarav Sharma. NextAlloc separates eligibility from suitability. Under government guidelines, mandatory requirements are hard mathematical constraints. Aarav has uploaded an institutional NOC and declared academic final-year status. Notice the related skills: Aarav knows 'Spring Boot'. NextAlloc recognizes that Spring Boot is related to Java, but never falsely equates them. If an employer mandates Java, Spring Boot alone will never bypass mandatory eligibility gating."
+### [1:00 - 2:00] Minute 2: Global Allocation & Actionable Offer Lifecycle
+- **Visual:** Switch to Admin (`admin@nextalloc.in`) -> `/admin/runs`. Trigger Balanced Policy run. Open Offers tab.
+- **Narrative:** "In the Admin Command Center, a single global run solves across the entire applicant population in under 2 seconds. Instead of a static spreadsheet, NextAlloc generates immutable offer ledgers. Let's switch back to the student view: Aarav receives an actionable offer. When he clicks **Accept Seat**, our backend executes pessimistic row locks (`CandidateProfile` -> `Offer` -> `Opportunity`), mathematically guaranteeing that no candidate can ever acquire more than one active placement across runs, and no seat can be double-booked."
 
-### [1:45 - 2:45] Minute 3: Global Allocation & Actionable Offers
-- **Visual:** Sign in as Administrator (`admin@nextalloc.in`). Navigate to `/admin/runs`.
-- **Narrative:** "Here in the Admin Command Center, we trigger a global allocation run under the Balanced Policy. In seconds, CP-SAT solves across 700 candidates and 50 opportunities. Notice the Offers tab: instead of static spreadsheet rows, NextAlloc generates immutable offer ledgers. Candidates receive real-time actionable offers."
-- **Visual:** Switch back to Candidate tab -> `/candidate/home`. Show 'Actionable Internship Offers' card. Click **Accept Seat**.
-
-### [2:45 - 3:45] Minute 4: Operational Integrity & Reallocation
-- **Visual:** Switch to Organisation Partner (`provider@nextalloc.in`). Navigate to `/provider/opportunities`. Open Offers modal and click **Confirm Joining**.
-- **Visual:** Switch to Admin -> `/admin/reallocation`. Show re-optimization with candidate withdrawal.
-- **Narrative:** "What happens when a candidate declines or drops out? Real systems cannot re-run from scratch and disturb thousands of settled students. NextAlloc supports child reallocation runs. Previously joined candidates are locked and strictly preserved. Look at the Movement Diff: only affected candidates are shifted to optimal alternative seats, with zero double-booking guaranteed by pessimistic row locks."
-
-### [3:45 - 5:00] Minute 5: Truthful Infeasibility & Explainability
-- **Visual:** Open Run Details for Full Coverage policy run. Show `Infeasible allocation` badge.
-- **Visual:** Open Candidate Analytics -> `/candidate/analytics`. Show radar chart and score breakdown.
-- **Narrative:** "Finally, NextAlloc never hallucinates. When a policy is mathematically impossible—such as mandating 100% placement when seats are insufficient—the engine truthfully reports 'Infeasible' and publishes zero invalid assignments. Every valid placement is fully explainable factor-by-factor. Thank you."
+### [2:00 - 3:00] Minute 3: Safe Reallocation, Employer Joining & Truthful Solvers
+- **Visual:** Switch to Employer (`provider@nextalloc.in`) -> `/provider/opportunities`. Click **Confirm Joining**. Switch to Admin -> `/admin/reallocation`. Show Reallocation Diff.
+- **Narrative:** "When another student declines an offer, we do not disturb settled students. NextAlloc triggers an incremental reallocation run: Aarav's joined seat is strictly pinned and preserved, and only vacant seats are re-optimized. Finally, NextAlloc never hallucinates: when a policy is mathematically impossible, such as 100% full coverage under a seat deficit, our solver truthfully reports 'Infeasible' with zero invalid allocations published. NextAlloc delivers fairness, transparency, and mathematically proven integrity at national scale."
 
 ---
 
 ## 7. SOURCE REPOSITORY MODIFICATIONS SUMMARY
 
-The following changes were made to achieve full release verification:
-1. `app/backend/src/main/java/in/pragati/repo/CandidateProfileRepository.java`: Added `findByIdForUpdate` and `findByUserIdForUpdate` with `LockModeType.PESSIMISTIC_WRITE`.
-2. `app/backend/src/main/java/in/pragati/service/OfferService.java`: Enforced candidate-level row lock serialization and cross-run active placement limit (`countByCandidateIdAndStatusIn <= 0`). Added `cancelOffer()`.
-3. `app/backend/src/main/java/in/pragati/web/AdminController.java`: Added administrative offer cancellation endpoint (`POST /api/admin/offers/{id}/cancel`).
-4. `app/backend/src/main/resources/application.yml`: Configured `pragati.rate-limit.login-per-minute` to use environment variable `${PRAGATI_RATE_LIMIT_LOGIN_PER_MINUTE:60}` to prevent test throttling.
-5. `app/backend/src/test/java/in/pragati/service/OfferLifecycleConcurrencyTest.java`: Added real multi-threaded `CountDownLatch` barrier tests for multi-run candidate race conditions, capacity contention, and decline idempotency.
-6. `evidence/e2e_runner.cjs`: Updated to align candidate skills and opportunity preferences with Provider ownership, and handle multi-run state cleanups.
-7. `scripts/verify-nextalloc-release.ps1`: Unified execution runner for Gates 0 through 7.
+1. `app/backend/pom.xml`: Packaged `org.postgresql:postgresql:42.7.4` and `org.flywaydb:flyway-database-postgresql:10.20.1`.
+2. `app/backend/src/main/resources/application.yml`: Restored production login rate limiter default to strict 8 attempts/min (`${PRAGATI_RATE_LIMIT_LOGIN_PER_MINUTE:8}`).
+3. `app/backend/src/main/java/in/pragati/repo/CandidateProfileRepository.java`: Added `findByIdForUpdate` and `findByUserIdForUpdate` with `LockModeType.PESSIMISTIC_WRITE`.
+4. `app/backend/src/main/java/in/pragati/service/OfferService.java`: Enforced candidate-level row lock serialization and cross-run active placement limit (`countByCandidateIdAndStatusIn <= 0`). Added `cancelOffer()`.
+5. `app/backend/src/main/java/in/pragati/web/AdminController.java`: Added administrative offer cancellation endpoint (`POST /api/admin/offers/{id}/cancel`).
+6. `app/backend/src/test/java/in/pragati/config/LoginRateLimitFilterTest.java`: Added 3 unit tests verifying strict production rate limiting and test isolation.
+7. `app/backend/src/test/java/in/pragati/service/OfferLifecycleConcurrencyTest.java`: Added real multi-threaded `CountDownLatch` barrier tests for multi-run candidate race conditions, capacity contention, and decline idempotency (9 tests).
+8. `app/backend/src/test/java/in/pragati/service/PostgresOfferLifecycleConcurrencyTest.java`: Added native PostgreSQL integration test verifying Flyway V1-V7 and Spring Data JPA row locking against port 5439.
+9. `evidence/e2e_runner.cjs`: Configured isolated testing on port 8088 with 11 screenshot captures.
+10. `scripts/verify-nextalloc-release.ps1`: Complete verified release runner for Gates 0 through 7.
