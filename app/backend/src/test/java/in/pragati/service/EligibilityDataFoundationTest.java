@@ -377,11 +377,13 @@ class EligibilityDataFoundationTest {
                 }
 
                 // Assert Candidate Skill row preserved and upgraded with truthful legacy null timestamps
-                try (ResultSet rs = stmt.executeQuery("SELECT id, candidate_id, raw_label, canonical, claim_source, evidence_status, created_at, updated_at, version FROM candidate_skills WHERE id = 801")) {
+                try (ResultSet rs = stmt.executeQuery("SELECT id, candidate_id, raw_label, canonical, source, validated, claim_source, evidence_status, created_at, updated_at, version FROM candidate_skills WHERE id = 801")) {
                     assertTrue(rs.next(), "Legacy candidate skill 801 must exist");
                     assertEquals(201L, rs.getLong("candidate_id"));
                     assertEquals("Python", rs.getString("raw_label"));
                     assertEquals("Python", rs.getString("canonical"));
+                    assertEquals("PROFILE", rs.getString("source"));
+                    assertTrue(rs.getBoolean("validated"));
                     assertEquals("LEGACY_UNSPECIFIED", rs.getString("claim_source"));
                     assertEquals("UNVERIFIED", rs.getString("evidence_status"));
                     assertNull(rs.getTimestamp("created_at"), "Legacy skill created_at must be NULL (no fabricated migration timestamp)");

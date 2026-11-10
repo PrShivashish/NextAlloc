@@ -103,6 +103,24 @@ class CandidateSkillPersistenceTest {
         assertEquals(SkillClaimSource.LEGACY_UNSPECIFIED, legacy.claimSource);
         assertEquals(SkillEvidenceStatus.UNVERIFIED, legacy.evidenceStatus);
         assertEquals(0L, legacy.version);
+
+        // Gate B & C: Perform genuine JPA update on the legacy record and verify version + timestamp semantics
+        legacy.evidenceStatus = SkillEvidenceStatus.VERIFIED;
+        CandidateSkill updatedLegacy = candidateSkillRepository.saveAndFlush(legacy);
+
+        // Verify preserved legacy identity and values
+        assertEquals("Python", updatedLegacy.canonical);
+        assertEquals("Python", updatedLegacy.rawLabel);
+        assertEquals(SkillSource.PROFILE, updatedLegacy.source);
+        assertTrue(updatedLegacy.validated);
+        assertNull(updatedLegacy.originalInput, "originalInput remains NULL when wording was historically lost");
+
+        // Verify truthful timestamp behavior: createdAt stays NULL, updatedAt is set
+        assertNull(updatedLegacy.createdAt, "createdAt must remain NULL even after subsequent update");
+        assertNotNull(updatedLegacy.updatedAt, "updatedAt must be populated upon genuine update");
+
+        // Verify optimistic locking version increment
+        assertEquals(1L, updatedLegacy.version, "@Version must increment from 0 to 1 on managed entity update");
     }
 
     @Test
