@@ -12,6 +12,7 @@ public class AppProperties {
     private final Web web = new Web();
     private final Uploads uploads = new Uploads();
     private final RateLimit rateLimit = new RateLimit();
+    private final Scoring scoring = new Scoring();
 
     public Jwt getJwt() { return jwt; }
     public Ai getAi() { return ai; }
@@ -19,6 +20,15 @@ public class AppProperties {
     public Web getWeb() { return web; }
     public Uploads getUploads() { return uploads; }
     public RateLimit getRateLimit() { return rateLimit; }
+    public Scoring getScoring() { return scoring; }
+
+    public static class Scoring {
+        private boolean experimentalRelatedSkills = false;
+        public boolean isExperimentalRelatedSkills() { return experimentalRelatedSkills; }
+        public void setExperimentalRelatedSkills(boolean experimentalRelatedSkills) {
+            this.experimentalRelatedSkills = experimentalRelatedSkills;
+        }
+    }
 
     public static class Jwt {
         private String secret;

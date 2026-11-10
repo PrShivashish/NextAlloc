@@ -5,16 +5,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import in.pragati.common.Labels;
 import in.pragati.common.Weights;
 import in.pragati.domain.CandidateProfile;
+import in.pragati.domain.CandidateRelatedSkill;
 import in.pragati.domain.Opportunity;
 import in.pragati.domain.OpportunitySkill;
 import in.pragati.domain.enums.CandidateState;
 import in.pragati.domain.enums.OppStatus;
 import in.pragati.domain.enums.Sector;
+import in.pragati.repo.CandidateRelatedSkillRepository;
 
 /**
  * Deterministic eligibility rules and suitability scoring.
@@ -30,6 +34,49 @@ public class SuitabilityService {
     public record PairScore(double skills, double qualification, double interest,
                             double location, double preference, double learning,
                             double experience, double overall) { }
+
+    public record SkillFitDetail(String skill, boolean mandatory, boolean exactMatch,
+                                 String matchedRelatedSkill, String relationshipType, double weightContribution) { }
+
+    public static final double WEIGHT_FRAMEWORK = 0.50;
+    public static final double WEIGHT_LANGUAGE_SUPERSET = 0.40;
+    public static final double WEIGHT_LIBRARY = 0.35;
+    public static final double WEIGHT_TOOL = 0.25;
+    public static final double WEIGHT_DEFAULT_RELATED = 0.20;
+
+    private boolean experimentalRelatedSkillsEnabled = false;
+    private CandidateRelatedSkillRepository candidateRelatedSkillRepo;
+
+    public SuitabilityService() {
+    }
+
+    @Autowired
+    public SuitabilityService(
+            @Value("${nextalloc.scoring.experimental-related-skills.enabled:${pragati.scoring.experimental-related-skills:false}}")
+            boolean experimentalRelatedSkillsEnabled,
+            @Autowired(required = false) CandidateRelatedSkillRepository candidateRelatedSkillRepo) {
+        this.experimentalRelatedSkillsEnabled = experimentalRelatedSkillsEnabled;
+        this.candidateRelatedSkillRepo = candidateRelatedSkillRepo;
+    }
+
+    public boolean isExperimentalRelatedSkillsEnabled() {
+        return experimentalRelatedSkillsEnabled;
+    }
+
+    public void setExperimentalRelatedSkillsEnabled(boolean experimentalRelatedSkillsEnabled) {
+        this.experimentalRelatedSkillsEnabled = experimentalRelatedSkillsEnabled;
+    }
+
+    public static double getRelationshipWeight(String relationshipType) {
+        if (relationshipType == null) return WEIGHT_DEFAULT_RELATED;
+        return switch (relationshipType.toUpperCase().trim()) {
+            case "FRAMEWORK" -> WEIGHT_FRAMEWORK;
+            case "LANGUAGE_SUPERSET" -> WEIGHT_LANGUAGE_SUPERSET;
+            case "LIBRARY" -> WEIGHT_LIBRARY;
+            case "TOOL" -> WEIGHT_TOOL;
+            default -> WEIGHT_DEFAULT_RELATED;
+        };
+    }
 
     private static final Map<String, String> STATE_ZONE = Map.ofEntries(
             Map.entry("Uttar Pradesh", "NORTH"), Map.entry("Delhi", "NORTH"),
@@ -85,12 +132,28 @@ public class SuitabilityService {
     public PairScore score(CandidateProfile p, Set<String> skills, Set<Sector> interestSectors,
                            Integer preferenceRank, Opportunity o,
                            List<OpportunitySkill> requirements, Weights w) {
-        double skillsFit = skillsFit(skills, requirements);
+        List<CandidateRelatedSkill> rel = List.of();
+        if (this.experimentalRelatedSkillsEnabled && this.candidateRelatedSkillRepo != null && p != null && p.id != null) {
+            rel = this.candidateRelatedSkillRepo.findByCandidateId(p.id);
+        }
+        return score(p, skills, rel, interestSectors, preferenceRank, o, requirements, w, this.experimentalRelatedSkillsEnabled);
+    }
+
+    public PairScore score(CandidateProfile p, Set<String> skills, List<CandidateRelatedSkill> relatedSkills,
+                           Set<Sector> interestSectors, Integer preferenceRank, Opportunity o,
+                           List<OpportunitySkill> requirements, Weights w) {
+        return score(p, skills, relatedSkills, interestSectors, preferenceRank, o, requirements, w, this.experimentalRelatedSkillsEnabled);
+    }
+
+    public PairScore score(CandidateProfile p, Set<String> skills, List<CandidateRelatedSkill> relatedSkills,
+                           Set<Sector> interestSectors, Integer preferenceRank, Opportunity o,
+                           List<OpportunitySkill> requirements, Weights w, boolean experimental) {
+        double skillsFit = skillsFit(skills, relatedSkills, requirements, experimental);
         double qualificationFit = qualificationFit(p, o);
         double interestFit = interestFit(interestSectors, o.sector);
         double locationFit = locationFit(p.state, o.state);
         double preferenceFit = preferenceFit(preferenceRank);
-        double learningFit = learningFit(p, skills.size());
+        double learningFit = learningFit(p, skills != null ? skills.size() : 0);
         double experienceFit = experienceFit(p);
         double overall = (w.skills() * skillsFit
                 + w.qualification() * qualificationFit
@@ -103,17 +166,63 @@ public class SuitabilityService {
                 r1(locationFit), r1(preferenceFit), r1(learningFit), r1(experienceFit), r1(overall));
     }
 
-    private double skillsFit(Set<String> skills, List<OpportunitySkill> requirements) {
-        int nice = 0, niceTotal = 0;
+    public double skillsFit(Set<String> skills, List<OpportunitySkill> requirements) {
+        return skillsFit(skills, List.of(), requirements, false);
+    }
+
+    public double skillsFit(Set<String> skills, List<CandidateRelatedSkill> relatedSkills,
+                            List<OpportunitySkill> requirements, boolean experimental) {
+        int niceTotal = 0;
+        double niceScore = 0.0;
         for (OpportunitySkill s : requirements) {
             if (!s.mandatory) {
                 niceTotal++;
-                if (skills.contains(s.skill)) nice++;
+                if (skills != null && skills.contains(s.skill)) {
+                    niceScore += 1.0;
+                } else if (experimental && relatedSkills != null && !relatedSkills.isEmpty()) {
+                    double bestRelated = 0.0;
+                    for (CandidateRelatedSkill crs : relatedSkills) {
+                        if (crs.relatedCanonical != null && crs.relatedCanonical.equalsIgnoreCase(s.skill)) {
+                            double relWeight = getRelationshipWeight(crs.relationshipType);
+                            if (relWeight > bestRelated) {
+                                bestRelated = relWeight;
+                            }
+                        }
+                    }
+                    niceScore += bestRelated;
+                }
             }
         }
         double fit = 75.0;
-        if (niceTotal > 0) fit += 25.0 * (nice / (double) niceTotal);
-        return fit;
+        if (niceTotal > 0) fit += 25.0 * (niceScore / (double) niceTotal);
+        return Math.min(100.0, Math.max(0.0, fit));
+    }
+
+    public List<SkillFitDetail> explainSkillFit(Set<String> skills, List<CandidateRelatedSkill> relatedSkills,
+                                               List<OpportunitySkill> requirements, boolean experimental) {
+        List<SkillFitDetail> details = new ArrayList<>();
+        for (OpportunitySkill s : requirements) {
+            boolean exact = skills != null && skills.contains(s.skill);
+            String matchedRel = null;
+            String relType = null;
+            double contrib = 0.0;
+            if (exact) {
+                contrib = 1.0;
+            } else if (!s.mandatory && experimental && relatedSkills != null) {
+                for (CandidateRelatedSkill crs : relatedSkills) {
+                    if (crs.relatedCanonical != null && crs.relatedCanonical.equalsIgnoreCase(s.skill)) {
+                        double w = getRelationshipWeight(crs.relationshipType);
+                        if (w > contrib) {
+                            contrib = w;
+                            matchedRel = crs.rawLabel != null ? crs.rawLabel : crs.conceptId;
+                            relType = crs.relationshipType;
+                        }
+                    }
+                }
+            }
+            details.add(new SkillFitDetail(s.skill, s.mandatory, exact, matchedRel, relType, contrib));
+        }
+        return details;
     }
 
     private double qualificationFit(CandidateProfile p, Opportunity o) {

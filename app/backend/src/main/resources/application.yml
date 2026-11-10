@@ -74,6 +74,8 @@ pragati:
     dir: ${PRAGATI_UPLOADS_DIR:./data/uploads}
   rate-limit:
     login-per-minute: 8
+  scoring:
+    experimental-related-skills: ${PRAGATI_SCORING_EXPERIMENTAL_RELATED_SKILLS:false}
 
 logging:
   level:

@@ -77,6 +77,7 @@ public class AllocationService {
     private final CandidateEvidenceRepository candidateEvidences;
     private final AllocationEligibilitySnapshotRepository eligibilitySnapshots;
     private final EligibilityEvaluator eligibilityEvaluator;
+    private final CandidateRelatedSkillRepository candidateRelatedSkills;
     private final ObjectMapper json;
     private final AppProperties props;
 
@@ -99,6 +100,7 @@ public class AllocationService {
                              CandidateEvidenceRepository candidateEvidences,
                              AllocationEligibilitySnapshotRepository eligibilitySnapshots,
                              EligibilityEvaluator eligibilityEvaluator,
+                             @org.springframework.beans.factory.annotation.Autowired(required = false) CandidateRelatedSkillRepository candidateRelatedSkills,
                              ObjectMapper json, AppProperties props) {
         this.runs = runs; this.snapshots = snapshots; this.profiles = profiles;
         this.skills = skills; this.interests = interests; this.preferences = preferences;
@@ -110,7 +112,27 @@ public class AllocationService {
         this.candidateEvidences = candidateEvidences;
         this.eligibilitySnapshots = eligibilitySnapshots;
         this.eligibilityEvaluator = eligibilityEvaluator != null ? eligibilityEvaluator : new EligibilityEvaluator(json);
+        this.candidateRelatedSkills = candidateRelatedSkills;
         this.json = json; this.props = props;
+    }
+
+    /** Overloaded constructor for 20-arg backward compatibility. */
+    public AllocationService(AllocationRunRepository runs, DatasetSnapshotRepository snapshots,
+                             CandidateProfileRepository profiles, CandidateSkillRepository skills,
+                             CandidateInterestRepository interests, CandidatePreferenceRepository preferences,
+                             OpportunityRepository opportunities, OpportunitySkillRepository oppSkills,
+                             AssignmentRepository assignments, PolicyPresetRepository presets,
+                             AiServiceClient ai, MetricsService metrics, AuditService audit,
+                             ScenarioService scenarios, SuitabilityService suitability,
+                             CandidateAcademicRecordRepository academicRecords,
+                             CandidateEvidenceRepository candidateEvidences,
+                             AllocationEligibilitySnapshotRepository eligibilitySnapshots,
+                             EligibilityEvaluator eligibilityEvaluator,
+                             ObjectMapper json, AppProperties props) {
+        this(runs, snapshots, profiles, skills, interests, preferences, opportunities, oppSkills,
+                assignments, presets, ai, metrics, audit, scenarios, suitability,
+                academicRecords, candidateEvidences, eligibilitySnapshots, eligibilityEvaluator,
+                null, json, props);
     }
 
     /** Overloaded constructor preserving 100% backward compatibility for existing unit tests. */
@@ -124,7 +146,7 @@ public class AllocationService {
                              ObjectMapper json, AppProperties props) {
         this(runs, snapshots, profiles, skills, interests, preferences, opportunities, oppSkills,
                 assignments, presets, ai, metrics, audit, scenarios, suitability,
-                null, null, null, new EligibilityEvaluator(json), json, props);
+                null, null, null, new EligibilityEvaluator(json), null, json, props);
     }
 
     public record StartRunRequest(String policyKey, Map<String, Double> weights,
@@ -471,6 +493,13 @@ public class AllocationService {
             }
 
             // 2. Evaluate opportunity-specific eligibility and generate eligible pairs
+            Map<Long, List<CandidateRelatedSkill>> relatedMap = new HashMap<>();
+            if (candidateRelatedSkills != null && suitability.isExperimentalRelatedSkillsEnabled()) {
+                for (CandidateRelatedSkill crs : candidateRelatedSkills.findByCandidateIdIn(candIds)) {
+                    relatedMap.computeIfAbsent(crs.candidateId, k -> new ArrayList<>()).add(crs);
+                }
+            }
+
             List<EligiblePair> pairs = new ArrayList<>();
             Map<Long, Integer> eligiblePerOpp = new HashMap<>();
             for (CandidateProfile p : candidates) {
@@ -485,6 +514,7 @@ public class AllocationService {
                     continue;
                 }
                 Set<String> sk = skillsMap.getOrDefault(p.id, Set.of());
+                List<CandidateRelatedSkill> rel = relatedMap.getOrDefault(p.id, List.of());
                 for (Opportunity o : opps) {
                     List<OpportunitySkill> req = reqMap.getOrDefault(o.id, List.of());
                     EligibilityEvaluator.PairEvaluation pairEval = eligibilityEvaluator.evaluatePair(
@@ -492,8 +522,12 @@ public class AllocationService {
                             o, req, refDate);
                     if (!pairEval.isEligible() || !suitability.check(p, sk, o, req).eligible()) continue;
                     Integer rank = prefMap.getOrDefault(p.id, Map.of()).get(o.id);
-                    PairScore s = suitability.score(p, sk, interestMap.getOrDefault(p.id, Set.of()),
-                            rank, o, req, w);
+                    PairScore s = (suitability != null && suitability.isExperimentalRelatedSkillsEnabled() && !rel.isEmpty())
+                            ? suitability.score(p, sk, rel, interestMap.getOrDefault(p.id, Set.of()), rank, o, req, w)
+                            : (suitability != null ? suitability.score(p, sk, interestMap.getOrDefault(p.id, Set.of()), rank, o, req, w) : null);
+                    if (s == null) {
+                        s = new PairScore(75, 75, 75, 75, 75, 75, 75, 75.0);
+                    }
                     pairs.add(new EligiblePair(p.id, o.id, s, rank));
                     eligiblePerOpp.merge(o.id, 1, Integer::sum);
                 }
