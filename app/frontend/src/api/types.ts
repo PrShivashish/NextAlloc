@@ -1,3 +1,48 @@
+export type OfferStatus = 'OFFERED' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED' | 'JOINED';
+
+export interface CandidateOffer {
+  id: number;
+  runId: number;
+  opportunityId: number;
+  opportunityTitle: string;
+  providerName: string;
+  sector: string;
+  state: string;
+  city?: string | null;
+  capacity: number;
+  durationMonths: number;
+  status: OfferStatus;
+  offeredAt: string;
+  respondedAt?: string | null;
+  joinedAt?: string | null;
+  declineReason?: string | null;
+}
+
+export interface ProviderOffer {
+  id: number;
+  runId: number;
+  candidateId: number;
+  candidateName: string;
+  qualification?: string | null;
+  status: OfferStatus;
+  offeredAt: string;
+  respondedAt?: string | null;
+  joinedAt?: string | null;
+  declineReason?: string | null;
+}
+
+export interface RelatedSkill {
+  id?: number;
+  raw?: string;
+  rawLabel?: string;
+  conceptId: string;
+  relatedCanonical: string;
+  relationshipType: string;
+  taxonomyVersion?: string;
+  claimSource?: string;
+  evidenceStatus?: string;
+}
+
 export interface Page<T> { content: T[]; totalElements: number; totalPages: number; }
 
 export interface ScenarioSummary { key: string; name: string; description: string; active: boolean; lastLoadedAt: string | null; }

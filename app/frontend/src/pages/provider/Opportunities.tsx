@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Pencil, CheckCircle2, PauseCircle, XCircle, Star, Users } from 'lucide-react';
+import { Plus, Pencil, CheckCircle2, PauseCircle, XCircle, Star, Users, Award, Check } from 'lucide-react';
 import { apiGet, apiPost, apiPut, apiPatch, errMsg } from '../../api/client';
-import { SectionHeader, Spinner, Callout, Badge, Modal, fmtNum } from '../../components/ui';
+import { SectionHeader, Spinner, Callout, Badge, Modal, fmtNum, fmtTime } from '../../components/ui';
+import { ProviderOffer } from '../../api/types';
 
 const SECTOR_OPTIONS: [string, string][] = [
   ['SOFTWARE_IT', 'Software & IT'], ['DATA_ANALYTICS', 'Data & Analytics'], ['FINANCE_BANKING', 'Finance & Banking'],
@@ -32,6 +33,14 @@ export default function ProviderOpportunities() {
   const [isNew, setIsNew] = useState(false);
   const [form, setForm] = useState<any>(BLANK);
   const [busy, setBusy] = useState(false);
+
+  // Offers and joining lifecycle state
+  const [selectedOppForOffers, setSelectedOppForOffers] = useState<any | null>(null);
+  const [offersList, setOffersList] = useState<ProviderOffer[]>([]);
+  const [offersLoading, setOffersLoading] = useState(false);
+  const [joiningBusy, setJoiningBusy] = useState<number | null>(null);
+  const [offersMsg, setOffersMsg] = useState('');
+  const [offersErr, setOffersErr] = useState('');
 
   const load = async () => {
     setLoading(true); setErr('');
@@ -84,6 +93,37 @@ export default function ProviderOpportunities() {
 
   const upd = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
+  const openOffers = async (opp: any) => {
+    setSelectedOppForOffers(opp);
+    setOffersLoading(true);
+    setOffersErr('');
+    setOffersMsg('');
+    try {
+      const data = await apiGet<ProviderOffer[]>(`/providers/me/opportunities/${opp.id}/offers`);
+      setOffersList(data ?? []);
+    } catch (e) {
+      setOffersErr(errMsg(e));
+    } finally {
+      setOffersLoading(false);
+    }
+  };
+
+  const handleConfirmJoining = async (offerId: number) => {
+    setJoiningBusy(offerId);
+    setOffersErr('');
+    setOffersMsg('');
+    try {
+      const updated = await apiPost<ProviderOffer>(`/providers/me/offers/${offerId}/join`, {});
+      setOffersList(prev => prev.map(o => o.id === offerId ? updated : o));
+      setOffersMsg('Candidate joining successfully confirmed.');
+      await load();
+    } catch (e) {
+      setOffersErr(errMsg(e));
+    } finally {
+      setJoiningBusy(null);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -123,6 +163,7 @@ export default function ProviderOpportunities() {
                     <td className="td"><Badge tone={o.status === 'Active' ? 'green' : o.status === 'Paused' ? 'amber' : 'red'} dot>{o.status}</Badge></td>
                     <td className="td">
                       <div className="flex justify-end gap-1">
+                        <button className="btn-ghost btn-sm text-saffron-700 hover:bg-saffron-50" onClick={() => openOffers(o)} title="View allocated candidates and manage joining"><Award className="h-3.5 w-3.5" /> Offers ({o.allocatedCount > 0 ? o.allocatedCount : 0})</button>
                         <button className="btn-ghost btn-sm" onClick={() => openEdit(o)}><Pencil className="h-3.5 w-3.5" /> Edit</button>
                         {o.status === 'Active' && <button className="btn-ghost btn-sm" onClick={() => setStatus(o.id, 'PAUSED')} title="Pause — hide from candidates without deleting"><PauseCircle className="h-4 w-4 text-amber-500" /></button>}
                         {o.status === 'Paused' && <button className="btn-ghost btn-sm" onClick={() => setStatus(o.id, 'ACTIVE')} title="Open again"><CheckCircle2 className="h-4 w-4 text-emerald-500" /></button>}
@@ -217,6 +258,110 @@ export default function ProviderOpportunities() {
         <div className="mt-5 flex justify-end gap-2">
           <button className="btn-ghost" onClick={() => setEditing(null)}>Cancel</button>
           <button className="btn-primary" onClick={save} disabled={busy || !form.title || !form.sector || !form.state}>{busy ? 'Saving…' : isNew ? 'Publish' : 'Save changes'}</button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!selectedOppForOffers}
+        onClose={() => setSelectedOppForOffers(null)}
+        title={`Allocated Candidates & Offers: ${selectedOppForOffers?.title ?? ''}`}
+        wide
+      >
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-navy-100 pb-3">
+            <div className="text-xs text-navy-500">
+              Capacity: <span className="font-semibold text-ink">{selectedOppForOffers?.capacity ?? 0} seats</span> · Duration: <span className="font-semibold text-ink">{selectedOppForOffers?.durationMonths ?? 0} months</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="chip bg-leaf-50 text-leaf-700 ring-1 ring-leaf-200 text-xs">
+                {offersList.filter(o => o.status === 'JOINED' || o.status === 'ACCEPTED').length} / {selectedOppForOffers?.capacity ?? 0} seats active
+              </span>
+            </div>
+          </div>
+
+          {offersErr && <Callout tone="danger">{offersErr}</Callout>}
+          {offersMsg && <Callout tone="success">{offersMsg}</Callout>}
+
+          {offersLoading ? (
+            <Spinner label="Loading candidate offers…" />
+          ) : offersList.length === 0 ? (
+            <div className="py-8 text-center text-xs text-navy-400">
+              No candidates have been allocated to this opportunity in recent runs yet.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-navy-100">
+                    <th className="th">Candidate</th>
+                    <th className="th">Qualification</th>
+                    <th className="th">Offer Status</th>
+                    <th className="th">Timestamps</th>
+                    <th className="th text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {offersList.map(o => (
+                    <tr key={o.id} className="border-b border-navy-50 last:border-0">
+                      <td className="td font-medium text-ink">
+                        {o.candidateName || `Candidate #${o.candidateId}`}
+                      </td>
+                      <td className="td text-xs text-navy-500">
+                        {o.qualification || '—'}
+                      </td>
+                      <td className="td">
+                        <Badge
+                          tone={
+                            o.status === 'JOINED' ? 'green' :
+                            o.status === 'ACCEPTED' ? 'leaf' :
+                            o.status === 'OFFERED' ? 'amber' :
+                            o.status === 'DECLINED' ? 'red' : 'gray'
+                          }
+                          dot
+                        >
+                          {o.status}
+                        </Badge>
+                      </td>
+                      <td className="td text-[11px] text-navy-400">
+                        <div>Offered: {fmtTime(o.offeredAt)}</div>
+                        {o.respondedAt && <div>Responded: {fmtTime(o.respondedAt)}</div>}
+                        {o.joinedAt && <div className="text-emerald-600 font-medium">Joined: {fmtTime(o.joinedAt)}</div>}
+                      </td>
+                      <td className="td text-right">
+                        {o.status === 'ACCEPTED' && (
+                          <button
+                            className="btn-primary btn-sm"
+                            disabled={joiningBusy === o.id}
+                            onClick={() => handleConfirmJoining(o.id)}
+                            title="Confirm candidate has reported and joined"
+                          >
+                            <Check className="h-3.5 w-3.5" /> Confirm Joining
+                          </button>
+                        )}
+                        {o.status === 'JOINED' && (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600">
+                            <CheckCircle2 className="h-4 w-4" /> Joined
+                          </span>
+                        )}
+                        {o.status === 'OFFERED' && (
+                          <span className="text-xs text-navy-400 italic">Awaiting candidate</span>
+                        )}
+                        {o.status === 'DECLINED' && (
+                          <span className="text-xs text-red-500 italic">Declined</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="mt-4 flex justify-end">
+            <button className="btn-ghost" onClick={() => setSelectedOppForOffers(null)}>
+              Close
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

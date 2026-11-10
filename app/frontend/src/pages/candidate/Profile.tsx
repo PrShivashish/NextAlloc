@@ -16,6 +16,7 @@ import {
   EnrollmentStatus,
   FinalYearStatus,
   SignatoryRole,
+  RelatedSkill,
 } from '../../api/types';
 import { SectionHeader, Callout, Badge, Spinner, fmtTime } from '../../components/ui';
 import { ScoreRing } from '../../components/ScoreRing';
@@ -29,6 +30,12 @@ const SKILL_SUGGESTIONS = [
   'Public Administration', 'Policy Analysis', 'HR Management', 'Operations',
   'Supply Chain', 'Legal Research', 'Environmental Science', 'Healthcare Data',
   'Project Management',
+];
+const RELATED_SKILL_SUGGESTIONS = [
+  'Spring Boot', 'Hibernate', 'Quarkus', 'FastAPI', 'Django', 'Flask',
+  'PyTorch', 'TensorFlow', 'Keras', 'Pandas', 'NumPy', 'Scikit-Learn',
+  'PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'Docker', 'Kubernetes',
+  'AWS', 'Azure', 'GCP', 'Git', 'Linux', 'Terraform', 'Next.js', 'Vue.js',
 ];
 const SECTOR_OPTIONS = [
   ['SOFTWARE_IT', 'Software & IT'], ['DATA_ANALYTICS', 'Data & Analytics'], ['FINANCE_BANKING', 'Finance & Banking'],
@@ -75,6 +82,8 @@ export default function CandidateProfile() {
   const [sugg, setSugg] = useState<ResumeSuggestionsView | null>(null);
   const [readiness, setReadiness] = useState<Readiness | null>(null);
   const [skillDraft, setSkillDraft] = useState('');
+  const [relatedSkills, setRelatedSkills] = useState<RelatedSkill[]>([]);
+  const [relatedSkillDraft, setRelatedSkillDraft] = useState('');
   const [oppSearch, setOppSearch] = useState('');
   const [oppResults, setOppResults] = useState<any[]>([]);
   const [oppNoMatch, setOppNoMatch] = useState<'' | 'none' | 'dups'>('');
@@ -127,7 +136,7 @@ export default function CandidateProfile() {
 
   const load = async () => {
     try {
-      const [prof, pr, rs, o, rd, acad, myNoc] = await Promise.all([
+      const [prof, pr, rs, o, rd, acad, myNoc, myRelated] = await Promise.all([
         apiGet<any>('/candidates/me/profile'),
         apiGet<any>('/candidates/me/preferences'),
         apiGet<any>('/candidates/me/resume').catch(() => null),
@@ -136,9 +145,11 @@ export default function CandidateProfile() {
         apiGet<Readiness>('/candidates/me/readiness').catch(() => null),
         apiGet<CandidateAcademicDto>('/candidates/me/academic').catch(() => null),
         apiGet<NocEvidenceDto>('/candidates/me/evidence/noc').catch(() => null),
+        apiGet<RelatedSkill[]>('/candidates/me/related-skills').catch(() => []),
       ]);
       setP(prof);
       setSkills((prof.skills ?? []).map((s: any) => s.canonical));
+      setRelatedSkills(myRelated ?? []);
       setInterests((prof.interests ?? []).map((s: any) => String(s)));
       const titles: Record<number, { title: string; sector: string }> = {};
       (o?.content ?? []).forEach((c: any) => { titles[c.id] = { title: c.title, sector: c.sector }; });
@@ -389,6 +400,39 @@ export default function CandidateProfile() {
     if (!v) return;
     if (!skills.includes(v)) setSkills(s => [...s, v]);
     setSkillDraft('');
+  };
+
+  const addRelatedSkill = () => {
+    const v = relatedSkillDraft.trim();
+    if (!v) return;
+    const exists = relatedSkills.some(s => (s.raw || s.rawLabel || '').toLowerCase() === v.toLowerCase());
+    if (!exists) {
+      setRelatedSkills(prev => [...prev, {
+        raw: v,
+        rawLabel: v,
+        conceptId: 'CUSTOM',
+        relatedCanonical: 'General',
+        relationshipType: 'DECLARED',
+        claimSource: 'SELF_DECLARED',
+        evidenceStatus: 'UNVERIFIED',
+      }]);
+    }
+    setRelatedSkillDraft('');
+  };
+
+  const removeRelatedSkill = (idx: number) => {
+    setRelatedSkills(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const saveRelatedSkills = async () => {
+    setSaving('relatedSkills'); setMsg(''); setErr('');
+    try {
+      const payload = relatedSkills.map(s => s.raw || s.rawLabel || '').filter(Boolean);
+      const res = await apiPut<RelatedSkill[]>('/candidates/me/related-skills', payload);
+      setRelatedSkills(res);
+      setMsg('Related concepts and frameworks saved successfully.');
+    } catch (e) { setErr(errMsg(e)); }
+    setSaving('');
   };
   const MAX_PREFS = 10; // backend rejects ranks above 10
 
@@ -1016,6 +1060,74 @@ export default function CandidateProfile() {
         </div>
         <div className="mt-4 flex justify-end">
           <button className="btn-primary" onClick={saveSkills} disabled={saving === 'skills'}><Wrench className="h-4 w-4" />{saving === 'skills' ? 'Saving…' : 'Save skills'}</button>
+        </div>
+      </div>
+
+      {/* 5b · Related Concepts & Soft Suitability Skills */}
+      <div className="card p-5">
+        <SectionHeader
+          title="Related Concepts & Frameworks"
+          sub="Enrich your profile with specialized tools, frameworks, and libraries (e.g. Spring Boot, PyTorch, Docker, FastAPI) for experimental soft suitability matching without weakening core eligibility."
+          right={
+            <span className="chip bg-navy-50 text-navy-600 ring-1 ring-navy-200">
+              <Sparkles className="h-3.5 w-3.5 text-saffron-500" /> soft suitability
+            </span>
+          }
+        />
+        <div className="flex flex-wrap gap-2">
+          {relatedSkills.map((s, idx) => (
+            <span key={idx} className="chip bg-saffron-50/70 text-saffron-800 ring-1 ring-saffron-200">
+              <span className="font-semibold">{s.raw || s.rawLabel}</span>
+              {s.relatedCanonical && (
+                <span className="text-[10px] text-saffron-600 font-normal">
+                  {' '}→ {s.relatedCanonical} ({s.relationshipType})
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => removeRelatedSkill(idx)}
+                className="ml-1 rounded-full p-0.5 hover:bg-saffron-200"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+          {relatedSkills.length === 0 && (
+            <span className="text-[13px] text-navy-400">No related concepts recorded yet.</span>
+          )}
+        </div>
+        <div className="mt-3 flex gap-2">
+          <div className="relative flex-1">
+            <input
+              className="input"
+              list="related-skill-sugg"
+              placeholder="Add related framework or tool (e.g. Spring Boot, Docker, FastAPI)…"
+              value={relatedSkillDraft}
+              onChange={e => setRelatedSkillDraft(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addRelatedSkill()}
+            />
+            <datalist id="related-skill-sugg">
+              {RELATED_SKILL_SUGGESTIONS.filter(rs => !relatedSkills.some(s => (s.raw || s.rawLabel || '').toLowerCase() === rs.toLowerCase())).map(s => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          </div>
+          <button className="btn-ghost" type="button" onClick={addRelatedSkill}>
+            <Plus className="h-4 w-4" /> Add Concept
+          </button>
+        </div>
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-navy-100 pt-3">
+          <span className="text-[11.5px] text-navy-400">
+            Validated against Pragati's official skill taxonomy. Unrecognized terms will be safely rejected.
+          </span>
+          <button
+            className="btn-primary"
+            onClick={saveRelatedSkills}
+            disabled={saving === 'relatedSkills'}
+          >
+            <Save className="h-4 w-4" />
+            {saving === 'relatedSkills' ? 'Saving…' : 'Save Related Concepts'}
+          </button>
         </div>
       </div>
 

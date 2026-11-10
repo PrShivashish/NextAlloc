@@ -3,10 +3,10 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import L from 'leaflet';
 import {
   ArrowLeft, Download, XCircle, Trophy, GitCompareArrows, Scale, Map as MapIcon,
-  Route, Fingerprint, HelpCircle, AlertTriangle, CheckCircle2,
+  Route, Fingerprint, HelpCircle, AlertTriangle, CheckCircle2, Award, RefreshCw,
 } from 'lucide-react';
 import { apiGet, apiPost, apiDownload, ApiError, errMsg } from '../../api/client';
-import { RunDetail as RD, Comparison, WhyDto, Fairness, GeoRow, Movement, ConflictRow } from '../../api/types';
+import { RunDetail as RD, Comparison, WhyDto, Fairness, GeoRow, Movement, ConflictRow, ProviderOffer } from '../../api/types';
 import { SectionHeader, Spinner, Callout, Badge, statusTone, KV, Modal, fmtNum, fmtPct, fmtMs, fmtTime } from '../../components/ui';
 import { HBar, FactorBars } from '../../components/charts';
 
@@ -16,6 +16,7 @@ const TABS = [
   { id: 'fairness', label: 'Fairness', icon: Scale },
   { id: 'geo', label: 'Geography', icon: MapIcon },
   { id: 'moves', label: 'Movements & conflicts', icon: Route },
+  { id: 'offers', label: 'Offers & Lifecycle', icon: Award },
   { id: 'prov', label: 'Provenance', icon: Fingerprint },
 ];
 
@@ -34,6 +35,11 @@ export default function AdminRunDetail() {
   const [moves, setMoves] = useState<Movement[]>([]);
   const [conflicts, setConflicts] = useState<ConflictRow[]>([]);
   const [tab, setTab] = useState(() => sp.get('tab') ?? 'compare');
+  const [offers, setOffers] = useState<ProviderOffer[]>([]);
+  const [offersLoading, setOffersLoading] = useState(false);
+  const [generatingOffers, setGeneratingOffers] = useState(false);
+  const [offersMsg, setOffersMsg] = useState('');
+  const [offersErr, setOffersErr] = useState('');
   const [err, setErr] = useState('');
   const [notFound, setNotFound] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -135,6 +141,42 @@ export default function AdminRunDetail() {
   }, [tab, geo, geoErr]);
 
   useEffect(() => () => { if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; } }, []);
+
+  const fetchOffers = async () => {
+    if (!runId) return;
+    setOffersLoading(true);
+    setOffersErr('');
+    try {
+      const data = await apiGet<ProviderOffer[]>(`/admin/runs/${runId}/offers`);
+      setOffers(data ?? []);
+    } catch (e) {
+      setOffersErr(errMsg(e));
+    } finally {
+      setOffersLoading(false);
+    }
+  };
+
+  const handleGenerateOffers = async () => {
+    if (!runId) return;
+    setGeneratingOffers(true);
+    setOffersErr('');
+    setOffersMsg('');
+    try {
+      const res = await apiPost<any>(`/admin/runs/${runId}/generate-offers`, {});
+      setOffersMsg(`Generated ${res.offersGenerated ?? 0} offers for this run.`);
+      await fetchOffers();
+    } catch (e) {
+      setOffersErr(errMsg(e));
+    } finally {
+      setGeneratingOffers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tab === 'offers') {
+      void fetchOffers();
+    }
+  }, [tab, runId]);
 
   if (notFound) return (
     <div className="space-y-4">
@@ -288,6 +330,17 @@ export default function AdminRunDetail() {
         </div>
       )}
       {tab === 'moves' && <MovesTab moves={moves} conflicts={conflicts} />}
+      {tab === 'offers' && (
+        <OffersTab
+          offers={offers}
+          loading={offersLoading}
+          onRefresh={fetchOffers}
+          onGenerate={handleGenerateOffers}
+          generating={generatingOffers}
+          msg={offersMsg}
+          err={offersErr}
+        />
+      )}
       {tab === 'prov' && d.provenance && <ProvTab p={d.provenance} />}
 
       <Modal open={!!whySel} onClose={() => setWhySel(null)} title={whySel ? `Why ${whySel.candidateName} → ${whySel.opportunityTitle ?? ''}` : ''} wide>
@@ -501,6 +554,188 @@ function ProvTab({ p }: { p: NonNullable<RD['provenance']> }) {
       <div className="mt-4 flex items-start gap-2 rounded-xl bg-navy-50/70 p-3.5 text-[12.5px] leading-relaxed text-navy-600 ring-1 ring-navy-100">
         <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
         Re-running this run with the same dataset version, seed and policy always produces the identical allocation — the engine is fully deterministic.
+      </div>
+    </div>
+  );
+}
+
+function OffersTab({
+  offers,
+  loading,
+  onRefresh,
+  onGenerate,
+  generating,
+  msg,
+  err,
+}: {
+  offers: ProviderOffer[];
+  loading: boolean;
+  onRefresh: () => void;
+  onGenerate: () => void;
+  generating: boolean;
+  msg: string;
+  err: string;
+}) {
+  const [filter, setFilter] = useState('ALL');
+  const counts = {
+    total: offers.length,
+    offered: offers.filter(o => o.status === 'OFFERED').length,
+    accepted: offers.filter(o => o.status === 'ACCEPTED').length,
+    joined: offers.filter(o => o.status === 'JOINED').length,
+    declined: offers.filter(o => o.status === 'DECLINED').length,
+    expired: offers.filter(o => o.status === 'EXPIRED').length,
+  };
+
+  const filtered = filter === 'ALL' ? offers : offers.filter(o => o.status === filter);
+
+  return (
+    <div className="space-y-4">
+      <div className="card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-navy-100 pb-4">
+          <div>
+            <SectionHeader
+              title="Offer Lifecycle & Placement Governance"
+              sub="Durable seat allocation records with concurrency safety and candidate response tracking"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              className="btn-ghost btn-sm"
+              onClick={onRefresh}
+              disabled={loading}
+              title="Refresh offers"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+            </button>
+            <button
+              className="btn-primary btn-sm"
+              onClick={onGenerate}
+              disabled={generating}
+              title="Generate / sync durable offers from run assignments"
+            >
+              <Award className="h-3.5 w-3.5" />
+              {generating ? 'Generating…' : 'Generate Run Offers'}
+            </button>
+          </div>
+        </div>
+
+        {err && <div className="mt-3"><Callout tone="danger">{err}</Callout></div>}
+        {msg && <div className="mt-3"><Callout tone="success">{msg}</Callout></div>}
+
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="rounded-xl bg-navy-50/70 p-3 ring-1 ring-navy-100">
+            <div className="text-[11px] font-bold text-navy-500 uppercase tracking-wider">Total Seats</div>
+            <div className="mt-1 font-display text-xl font-bold text-ink">{counts.total}</div>
+          </div>
+          <div className="rounded-xl bg-amber-50/70 p-3 ring-1 ring-amber-200">
+            <div className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Offered</div>
+            <div className="mt-1 font-display text-xl font-bold text-amber-800">{counts.offered}</div>
+          </div>
+          <div className="rounded-xl bg-leaf-50/70 p-3 ring-1 ring-leaf-200">
+            <div className="text-[11px] font-bold text-leaf-700 uppercase tracking-wider">Accepted</div>
+            <div className="mt-1 font-display text-xl font-bold text-leaf-800">{counts.accepted}</div>
+          </div>
+          <div className="rounded-xl bg-emerald-50/70 p-3 ring-1 ring-emerald-200">
+            <div className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Joined</div>
+            <div className="mt-1 font-display text-xl font-bold text-emerald-800">{counts.joined}</div>
+          </div>
+          <div className="rounded-xl bg-red-50/70 p-3 ring-1 ring-red-200">
+            <div className="text-[11px] font-bold text-red-700 uppercase tracking-wider">Declined</div>
+            <div className="mt-1 font-display text-xl font-bold text-red-800">{counts.declined}</div>
+          </div>
+          <div className="rounded-xl bg-gray-50/70 p-3 ring-1 ring-gray-200">
+            <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Expired</div>
+            <div className="mt-1 font-display text-xl font-bold text-gray-700">{counts.expired}</div>
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-navy-100 pt-4">
+          <div className="flex flex-wrap gap-1.5">
+            {['ALL', 'OFFERED', 'ACCEPTED', 'JOINED', 'DECLINED'].map(status => (
+              <button
+                key={status}
+                onClick={() => setFilter(status)}
+                className={`btn btn-sm text-xs ${
+                  filter === status
+                    ? 'bg-ink text-white'
+                    : 'border border-navy-900/10 bg-white text-navy-600 hover:bg-navy-50'
+                }`}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+          <div className="text-xs text-navy-400">
+            Showing {filtered.length} of {offers.length} offers
+          </div>
+        </div>
+
+        <div className="mt-3 overflow-x-auto">
+          {loading ? (
+            <Spinner label="Loading run offers…" />
+          ) : filtered.length === 0 ? (
+            <div className="py-8 text-center text-xs text-navy-400">
+              No offers matching the selected filter. Click &ldquo;Generate Run Offers&rdquo; to create offers for this completed run.
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-navy-100">
+                  <th className="th">Offer ID</th>
+                  <th className="th">Candidate</th>
+                  <th className="th">Qualification</th>
+                  <th className="th">Status</th>
+                  <th className="th">Offered At</th>
+                  <th className="th">Responded / Joined</th>
+                  <th className="th">Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(o => (
+                  <tr key={o.id} className="border-b border-navy-50 last:border-0">
+                    <td className="td font-mono text-xs text-navy-400">#{o.id}</td>
+                    <td className="td font-medium text-ink">
+                      {o.candidateName || `Candidate #${o.candidateId}`}
+                    </td>
+                    <td className="td text-xs text-navy-500">{o.qualification || '—'}</td>
+                    <td className="td">
+                      <Badge
+                        tone={
+                          o.status === 'JOINED' ? 'green' :
+                          o.status === 'ACCEPTED' ? 'leaf' :
+                          o.status === 'OFFERED' ? 'amber' :
+                          o.status === 'DECLINED' ? 'red' : 'gray'
+                        }
+                        dot
+                      >
+                        {o.status}
+                      </Badge>
+                    </td>
+                    <td className="td text-xs text-navy-500">{fmtTime(o.offeredAt)}</td>
+                    <td className="td text-xs text-navy-500">
+                      {o.joinedAt ? (
+                        <span className="font-semibold text-emerald-600">Joined {fmtTime(o.joinedAt)}</span>
+                      ) : o.respondedAt ? (
+                        <span>Responded {fmtTime(o.respondedAt)}</span>
+                      ) : (
+                        <span className="text-navy-400 italic">Pending response</span>
+                      )}
+                    </td>
+                    <td className="td text-xs text-navy-400">
+                      {o.declineReason ? (
+                        <span className="text-red-500" title={o.declineReason}>
+                          Reason: {o.declineReason}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </div>
   );
