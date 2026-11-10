@@ -45,6 +45,7 @@ public class CandidateService {
     private final UserRepository users;
     private final CandidateProfileRepository profiles;
     private final CandidateSkillRepository skills;
+    private final CandidateRelatedSkillRepository relatedSkills;
     private final CandidateInterestRepository interests;
     private final CandidatePreferenceRepository preferences;
     private final OpportunityRepository opportunities;
@@ -61,6 +62,27 @@ public class CandidateService {
     private final AppProperties props;
     private final ObjectMapper json;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    public CandidateService(UserRepository users, CandidateProfileRepository profiles,
+                            CandidateSkillRepository skills, CandidateRelatedSkillRepository relatedSkills,
+                            CandidateInterestRepository interests,
+                            CandidatePreferenceRepository preferences, OpportunityRepository opportunities,
+                            OpportunitySkillRepository oppSkills, AssignmentRepository assignments,
+                            AllocationRunRepository runs, DatasetSnapshotRepository snapshots,
+                            ResumeFileRepository resumes, SuitabilityService suitability,
+                            ReadinessService readiness, ResumeIntelligenceService resumeIntelligence,
+                            AuditService audit, AiServiceClient ai,
+                            AppProperties props, ObjectMapper json) {
+        this.users = users; this.profiles = profiles; this.skills = skills;
+        this.relatedSkills = relatedSkills;
+        this.interests = interests; this.preferences = preferences;
+        this.opportunities = opportunities; this.oppSkills = oppSkills;
+        this.assignments = assignments; this.runs = runs; this.snapshots = snapshots;
+        this.resumes = resumes; this.suitability = suitability; this.readiness = readiness;
+        this.resumeIntelligence = resumeIntelligence;
+        this.audit = audit; this.ai = ai; this.props = props; this.json = json;
+    }
+
     public CandidateService(UserRepository users, CandidateProfileRepository profiles,
                             CandidateSkillRepository skills, CandidateInterestRepository interests,
                             CandidatePreferenceRepository preferences, OpportunityRepository opportunities,
@@ -70,13 +92,8 @@ public class CandidateService {
                             ReadinessService readiness, ResumeIntelligenceService resumeIntelligence,
                             AuditService audit, AiServiceClient ai,
                             AppProperties props, ObjectMapper json) {
-        this.users = users; this.profiles = profiles; this.skills = skills;
-        this.interests = interests; this.preferences = preferences;
-        this.opportunities = opportunities; this.oppSkills = oppSkills;
-        this.assignments = assignments; this.runs = runs; this.snapshots = snapshots;
-        this.resumes = resumes; this.suitability = suitability; this.readiness = readiness;
-        this.resumeIntelligence = resumeIntelligence;
-        this.audit = audit; this.ai = ai; this.props = props; this.json = json;
+        this(users, profiles, skills, null, interests, preferences, opportunities, oppSkills, assignments,
+             runs, snapshots, resumes, suitability, readiness, resumeIntelligence, audit, ai, props, json);
     }
 
     // ------------------------------------------------------------------
@@ -280,6 +297,115 @@ public class CandidateService {
         return mySkills(me);
     }
 
+    public record RelatedSkillItem(
+            Long id,
+            String raw,
+            String conceptId,
+            String relatedCanonical,
+            String relationshipType,
+            String taxonomyVersion,
+            String claimSource,
+            String evidenceStatus
+    ) {}
+
+    public List<RelatedSkillItem> myRelatedSkills(AuthUser me) {
+        CandidateProfile p = requireSelfProfile(me);
+        if (relatedSkills == null) return List.of();
+        return relatedSkills.findByCandidateId(p.id).stream()
+                .map(s -> new RelatedSkillItem(
+                        s.id,
+                        s.rawLabel,
+                        s.conceptId,
+                        s.relatedCanonical,
+                        s.relationshipType,
+                        s.taxonomyVersion,
+                        s.claimSource != null ? s.claimSource.name() : "SELF_DECLARED",
+                        s.evidenceStatus != null ? s.evidenceStatus.name() : "UNVERIFIED"
+                ))
+                .toList();
+    }
+
+    @Transactional
+    public List<RelatedSkillItem> setRelatedSkills(AuthUser me, List<String> labels) {
+        CandidateProfile p = requireSelfProfileForUpdate(me);
+        if (relatedSkills == null) return List.of();
+        if (labels == null) labels = List.of();
+
+        // 1. Group and validate submitted labels against recognized related concepts
+        Map<String, SkillTaxonomy.RelatedConcept> conceptsToSave = new LinkedHashMap<>();
+        Map<String, String> rawLabels = new HashMap<>();
+        for (String raw : labels) {
+            if (raw == null || raw.isBlank()) continue;
+            String trimmed = raw.trim();
+            SkillTaxonomy.RelatedConcept rc = SkillTaxonomy.findRelatedConcept(trimmed);
+            if (rc == null) {
+                throw ApiException.badRequest("Unrecognized related skill: \"" + trimmed + "\". Please select from supported related technical skills.");
+            }
+            if (!conceptsToSave.containsKey(rc.conceptId())) {
+                conceptsToSave.put(rc.conceptId(), rc);
+                rawLabels.put(rc.conceptId(), trimmed);
+            }
+        }
+
+        if (conceptsToSave.size() > 20) {
+            throw ApiException.badRequest("Please keep the related skills list to at most 20 skills.");
+        }
+
+        // 2. Fetch existing related skills to preserve verified status
+        List<CandidateRelatedSkill> existing = relatedSkills.findByCandidateId(p.id);
+        Map<String, CandidateRelatedSkill> existingByConcept = new HashMap<>();
+        for (CandidateRelatedSkill es : existing) {
+            existingByConcept.put(es.conceptId, es);
+        }
+
+        // 3. Delete unverified related skills not present in new submission
+        List<CandidateRelatedSkill> toDelete = new ArrayList<>();
+        for (CandidateRelatedSkill es : existing) {
+            if (!conceptsToSave.containsKey(es.conceptId)) {
+                if (es.evidenceStatus != SkillEvidenceStatus.VERIFIED) {
+                    toDelete.add(es);
+                }
+            }
+        }
+        if (!toDelete.isEmpty()) {
+            relatedSkills.deleteAll(toDelete);
+        }
+
+        // 4. Update or insert submitted related skills
+        List<CandidateRelatedSkill> toSave = new ArrayList<>();
+        for (SkillTaxonomy.RelatedConcept rc : conceptsToSave.values()) {
+            CandidateRelatedSkill es = existingByConcept.get(rc.conceptId());
+            if (es != null && es.evidenceStatus == SkillEvidenceStatus.VERIFIED) {
+                // Preserve verified record intact
+                toSave.add(es);
+            } else if (es != null) {
+                // Update in place
+                es.rawLabel = rawLabels.get(rc.conceptId());
+                es.relatedCanonical = rc.relatedCanonical();
+                es.relationshipType = rc.relationType();
+                es.taxonomyVersion = SkillTaxonomy.TAXONOMY_VERSION;
+                es.claimSource = SkillClaimSource.SELF_DECLARED;
+                es.evidenceStatus = SkillEvidenceStatus.UNVERIFIED;
+                toSave.add(es);
+            } else {
+                CandidateRelatedSkill s = new CandidateRelatedSkill();
+                s.candidateId = p.id;
+                s.rawLabel = rawLabels.get(rc.conceptId());
+                s.conceptId = rc.conceptId();
+                s.relatedCanonical = rc.relatedCanonical();
+                s.relationshipType = rc.relationType();
+                s.taxonomyVersion = SkillTaxonomy.TAXONOMY_VERSION;
+                s.claimSource = SkillClaimSource.SELF_DECLARED;
+                s.evidenceStatus = SkillEvidenceStatus.UNVERIFIED;
+                toSave.add(s);
+            }
+        }
+        relatedSkills.saveAll(toSave);
+        p.touch();
+        profiles.save(p);
+        return myRelatedSkills(me);
+    }
+
     public List<Sector> myInterests(AuthUser me) {
         CandidateProfile p = requireSelfProfile(me);
         return interests.findByCandidateId(p.id).stream().map(i -> i.sector).toList();
@@ -436,6 +562,7 @@ public class CandidateService {
 
         r.status = "PROCESSING";
         List<ExtractedSkillDetail> extracted = extractSkillDetails(text);
+        List<ExtractedRelatedDetail> extractedRelated = extractRelatedSkillDetails(text);
         // Normalized, taxonomy-validated skills only; user confirms before they count.
         Map<String, ExtractedSkillDetail> uniqueCanonicals = new LinkedHashMap<>();
         for (ExtractedSkillDetail es : extracted) {
@@ -469,6 +596,15 @@ public class CandidateService {
                 dn.put("raw", es.raw());
             }
 
+            var relatedArr = node.putArray("relatedSkills");
+            for (ExtractedRelatedDetail rd : extractedRelated) {
+                var rn = relatedArr.addObject();
+                rn.put("raw", rd.raw());
+                rn.put("conceptId", rd.conceptId());
+                rn.put("relatedCanonical", rd.relatedCanonical());
+                rn.put("relationType", rd.relationType());
+            }
+
             var interestsArr = node.putArray("interests");
             for (String s : sugg.interests()) interestsArr.add(s);
             r.suggestionsJson = json.writeValueAsString(node);
@@ -477,6 +613,7 @@ public class CandidateService {
         }
 
         boolean anythingToReview = !validated.isEmpty()
+                || !extractedRelated.isEmpty()
                 || (r.suggestionsJson != null && r.suggestionsJson.contains("\"fields\":[{\""));
         r.status = anythingToReview ? "PENDING_REVIEW" : "REVIEWED";
         if (!anythingToReview) r.statusMessage = "No profile suggestions found — nothing to review.";
@@ -490,7 +627,17 @@ public class CandidateService {
     // Resume suggestion review & safe auto-fill
     // ------------------------------------------------------------------
 
-    public record ApplyInput(Long resumeId, Map<String, String> profile, List<String> skills, List<String> interests) { }
+    public record ApplyInput(
+            Long resumeId,
+            Map<String, String> profile,
+            List<String> skills,
+            List<String> interests,
+            List<String> relatedSkills
+    ) {
+        public ApplyInput(Long resumeId, Map<String, String> profile, List<String> skills, List<String> interests) {
+            this(resumeId, profile, skills, interests, List.of());
+        }
+    }
 
     /** Applies only what the candidate explicitly confirms.
      *  - only the latest resume of this user can be reviewed;
@@ -515,6 +662,7 @@ public class CandidateService {
         Set<String> suggestedInterests = new HashSet<>();
         Set<String> suggestedFields = new HashSet<>();
         Map<String, String> detailedRawPhrases = new HashMap<>();
+        Map<String, ExtractedRelatedDetail> suggestedRelatedMap = new HashMap<>();
         if (latest.suggestionsJson != null) {
             try {
                 var root = json.readTree(latest.suggestionsJson);
@@ -525,6 +673,20 @@ public class CandidateService {
                     for (var n : root.get("skillsDetailed")) {
                         if (n.has("canonical") && n.has("raw")) {
                             detailedRawPhrases.put(n.get("canonical").asText(), n.get("raw").asText());
+                        }
+                    }
+                }
+                if (root.has("relatedSkills")) {
+                    for (var n : root.get("relatedSkills")) {
+                        if (n.has("conceptId") && n.has("raw")) {
+                            String raw = n.get("raw").asText();
+                            String cid = n.get("conceptId").asText();
+                            String rc = n.has("relatedCanonical") ? n.get("relatedCanonical").asText() : "";
+                            String rt = n.has("relationType") ? n.get("relationType").asText() : "RELATED_CONCEPT";
+                            ExtractedRelatedDetail detail = new ExtractedRelatedDetail(raw, cid, rc, rt);
+                            suggestedRelatedMap.put(raw, detail);
+                            suggestedRelatedMap.put(cid, detail);
+                            suggestedRelatedMap.put(raw.toLowerCase(Locale.ROOT), detail);
                         }
                     }
                 }
@@ -543,6 +705,11 @@ public class CandidateService {
         }
         for (String s : in.skills() == null ? List.<String>of() : in.skills()) {
             if (!suggestedSkills.contains(s)) throw ApiException.badRequest("Skill not suggested by this resume: " + s);
+        }
+        for (String rs : in.relatedSkills() == null ? List.<String>of() : in.relatedSkills()) {
+            if (!suggestedRelatedMap.containsKey(rs) && !suggestedRelatedMap.containsKey(rs.toLowerCase(Locale.ROOT))) {
+                throw ApiException.badRequest("Related skill not suggested by this resume: " + rs);
+            }
         }
         for (String it : in.interests() == null ? List.<String>of() : in.interests()) {
             if (!suggestedInterests.contains(it)) throw ApiException.badRequest("Interest not suggested by this resume: " + it);
@@ -585,6 +752,61 @@ public class CandidateService {
                 existing.add(canonical);
             }
         }
+        if (in.relatedSkills() != null && !in.relatedSkills().isEmpty() && relatedSkills != null) {
+            List<CandidateRelatedSkill> existingRel = relatedSkills.findByCandidateId(p.id);
+            Map<String, CandidateRelatedSkill> existingByConcept = new HashMap<>();
+            for (CandidateRelatedSkill es : existingRel) {
+                existingByConcept.put(es.conceptId, es);
+            }
+            List<CandidateRelatedSkill> toSaveRel = new ArrayList<>();
+            for (String rawOrConcept : in.relatedSkills()) {
+                ExtractedRelatedDetail detail = suggestedRelatedMap.get(rawOrConcept);
+                if (detail == null) {
+                    detail = suggestedRelatedMap.get(rawOrConcept.toLowerCase(Locale.ROOT));
+                }
+                String conceptId = detail != null ? detail.conceptId() : null;
+                String rawLabel = detail != null ? detail.raw() : rawOrConcept;
+                String relatedCanonical = detail != null ? detail.relatedCanonical() : "";
+                String relType = detail != null ? detail.relationType() : "RELATED_CONCEPT";
+
+                if (conceptId == null) {
+                    var rc = SkillTaxonomy.findRelatedConcept(rawOrConcept);
+                    if (rc != null) {
+                        conceptId = rc.conceptId();
+                        relatedCanonical = rc.relatedCanonical();
+                        relType = rc.relationType();
+                    }
+                }
+                if (conceptId == null) continue;
+
+                CandidateRelatedSkill existingSkill = existingByConcept.get(conceptId);
+                if (existingSkill != null && existingSkill.evidenceStatus == SkillEvidenceStatus.VERIFIED) {
+                    // Preserve verified status
+                    continue;
+                } else if (existingSkill != null) {
+                    existingSkill.rawLabel = rawLabel;
+                    existingSkill.taxonomyVersion = SkillTaxonomy.TAXONOMY_VERSION;
+                    existingSkill.claimSource = SkillClaimSource.RESUME_EXTRACTED;
+                    existingSkill.evidenceStatus = SkillEvidenceStatus.UNVERIFIED;
+                    toSaveRel.add(existingSkill);
+                } else {
+                    CandidateRelatedSkill crs = new CandidateRelatedSkill();
+                    crs.candidateId = p.id;
+                    crs.rawLabel = rawLabel;
+                    crs.conceptId = conceptId;
+                    crs.relatedCanonical = relatedCanonical;
+                    crs.relationshipType = relType;
+                    crs.taxonomyVersion = SkillTaxonomy.TAXONOMY_VERSION;
+                    crs.claimSource = SkillClaimSource.RESUME_EXTRACTED;
+                    crs.evidenceStatus = SkillEvidenceStatus.UNVERIFIED;
+                    toSaveRel.add(crs);
+                    existingByConcept.put(conceptId, crs);
+                }
+            }
+            if (!toSaveRel.isEmpty()) {
+                relatedSkills.saveAll(toSaveRel);
+            }
+        }
         if (in.interests() != null && !in.interests().isEmpty()) {
             Set<Sector> current = new java.util.TreeSet<>(myInterests(me));
             for (String it : in.interests()) current.add(Sector.valueOf(it));
@@ -600,6 +822,7 @@ public class CandidateService {
                 me.name() + " reviewed resume suggestions ("
                         + profile.size() + " profile fields, "
                         + (in.skills() == null ? 0 : in.skills().size()) + " skills, "
+                        + (in.relatedSkills() == null ? 0 : in.relatedSkills().size()) + " related skills, "
                         + (in.interests() == null ? 0 : in.interests().size()) + " interests confirmed).", null);
         return latestResume(me);
     }
@@ -667,6 +890,32 @@ public class CandidateService {
         return extractSkillDetails(text).stream()
                 .map(ExtractedSkillDetail::canonical)
                 .toList();
+    }
+
+    record ExtractedRelatedDetail(String raw, String conceptId, String relatedCanonical, String relationType) {}
+
+    private List<ExtractedRelatedDetail> extractRelatedSkillDetails(String text) {
+        if (text == null || text.isBlank()) return List.of();
+        try {
+            AiServiceClient.SkillsResult res = ai.extractSkills(text);
+            if (res != null && res.relatedSkills() != null) {
+                return res.relatedSkills().stream()
+                        .map(r -> new ExtractedRelatedDetail(r.raw(), r.conceptId(), r.relatedCanonical(), r.relationType()))
+                        .toList();
+            }
+            return List.of();
+        } catch (Exception e) {
+            List<ExtractedRelatedDetail> found = new ArrayList<>();
+            String lower = text.toLowerCase(Locale.ROOT);
+            for (var entry : SkillTaxonomy.RELATED_CONCEPTS.entrySet()) {
+                String alias = entry.getKey();
+                if (lower.matches(".*\\b" + java.util.regex.Pattern.quote(alias) + "\\b.*")) {
+                    var rc = entry.getValue();
+                    found.add(new ExtractedRelatedDetail(alias, rc.conceptId(), rc.relatedCanonical(), rc.relationType()));
+                }
+            }
+            return found;
+        }
     }
 
     // ------------------------------------------------------------------

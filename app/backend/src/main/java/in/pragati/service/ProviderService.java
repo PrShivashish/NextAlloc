@@ -173,6 +173,7 @@ public class ProviderService {
         applyInput(o, in);
         o.providerId = org.id;
         Opportunity saved = opportunities.save(o);
+        addOppSkills(saved, in);
         audit.log(me, AuditAction.OPPORTUNITY_CREATED, "Opportunity", String.valueOf(saved.id),
                 "Opportunity '" + saved.title + "' created by " + org.orgName + ".", null);
         return myOpportunity(me, saved.id);
@@ -233,7 +234,7 @@ public class ProviderService {
         if (in.mandatorySkills() != null) {
             for (String s : in.mandatorySkills()) {
                 String c = SkillTaxonomy.normalize(s);
-                if (c == null) throw ApiException.badRequest("Unrecognized skill: " + s);
+                if (c == null) throw ApiException.badRequest("Unrecognized mandatory skill: " + s);
                 mandatory.add(c);
             }
         }
@@ -249,8 +250,8 @@ public class ProviderService {
         Set<String> nice = new HashSet<>();
         if (in.niceSkills() != null) {
             for (String s : in.niceSkills()) {
-                String c = SkillTaxonomy.normalize(s);
-                if (c == null) throw ApiException.badRequest("Unrecognized skill: " + s);
+                String c = SkillTaxonomy.normalizeOptional(s);
+                if (c == null) throw ApiException.badRequest("Unrecognized optional skill: " + s);
                 nice.add(c);
             }
         }

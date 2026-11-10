@@ -65,6 +65,7 @@ public class CandidateController {
         out.put("bio", p.bio == null ? "" : p.bio);
         out.put("experienceYears", p.experienceYears == null ? 0 : p.experienceYears);
         out.put("skills", candidateService.mySkills(me));
+        out.put("relatedSkills", candidateService.myRelatedSkills(me));
         out.put("interests", candidateService.myInterests(me));
         return out;
     }
@@ -82,6 +83,19 @@ public class CandidateController {
     public List<CandidateService.SkillItem> setSkills(@AuthenticationPrincipal AuthUser me,
                                                       @RequestBody List<String> skills) {
         return candidateService.setSkills(me, skills);
+    }
+
+    @GetMapping("/me/related-skills")
+    @Operation(summary = "My declared and extracted related skills.")
+    public List<CandidateService.RelatedSkillItem> relatedSkills(@AuthenticationPrincipal AuthUser me) {
+        return candidateService.myRelatedSkills(me);
+    }
+
+    @PutMapping("/me/related-skills")
+    @Operation(summary = "Replace my declared related skills (validated against recognized tools, frameworks, and libraries).")
+    public List<CandidateService.RelatedSkillItem> setRelatedSkills(@AuthenticationPrincipal AuthUser me,
+                                                                   @RequestBody List<String> skills) {
+        return candidateService.setRelatedSkills(me, skills);
     }
 
     @PutMapping("/me/interests")

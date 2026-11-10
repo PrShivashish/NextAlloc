@@ -74,6 +74,45 @@ public final class SkillTaxonomy {
 
     private SkillTaxonomy() { }
 
+    public record RelatedConcept(
+            String name,
+            String conceptId,
+            String relatedCanonical,
+            String relationType,
+            String description
+    ) {}
+
+    public static final Map<String, RelatedConcept> RELATED_CONCEPTS = Map.ofEntries(
+            Map.entry("spring boot", new RelatedConcept("Spring Boot", "CONCEPT-REL-SPRING_BOOT", "Java", "FRAMEWORK", "Java enterprise framework")),
+            Map.entry("spring framework", new RelatedConcept("Spring Framework", "CONCEPT-REL-SPRING_FRAMEWORK", "Java", "FRAMEWORK", "Java application framework")),
+            Map.entry("pytorch", new RelatedConcept("PyTorch", "CONCEPT-REL-PYTORCH", "Deep Learning", "FRAMEWORK", "Deep learning tensor framework")),
+            Map.entry("tensorflow", new RelatedConcept("TensorFlow", "CONCEPT-REL-TENSORFLOW", "Deep Learning", "FRAMEWORK", "Machine learning & deep learning platform")),
+            Map.entry("kubernetes", new RelatedConcept("Kubernetes", "CONCEPT-REL-KUBERNETES", "DevOps", "TOOL", "Container orchestration platform")),
+            Map.entry("k8s", new RelatedConcept("Kubernetes", "CONCEPT-REL-KUBERNETES", "DevOps", "TOOL", "Container orchestration platform")),
+            Map.entry("docker", new RelatedConcept("Docker", "CONCEPT-REL-DOCKER", "DevOps", "TOOL", "Container runtime and packaging tool")),
+            Map.entry("fastapi", new RelatedConcept("FastAPI", "CONCEPT-REL-FASTAPI", "Python", "FRAMEWORK", "Python web framework")),
+            Map.entry("django", new RelatedConcept("Django", "CONCEPT-REL-DJANGO", "Python", "FRAMEWORK", "Python full-stack framework")),
+            Map.entry("flask", new RelatedConcept("Flask", "CONCEPT-REL-FLASK", "Python", "FRAMEWORK", "Python microframework")),
+            Map.entry("typescript", new RelatedConcept("TypeScript", "CONCEPT-REL-TYPESCRIPT", "JavaScript", "LANGUAGE_SUPERSET", "Typed JavaScript superset")),
+            Map.entry("pandas", new RelatedConcept("Pandas", "CONCEPT-REL-PANDAS", "Data Analysis", "LIBRARY", "Data manipulation library")),
+            Map.entry("numpy", new RelatedConcept("NumPy", "CONCEPT-REL-NUMPY", "Data Analysis", "LIBRARY", "Numerical computation library")),
+            Map.entry("scikit-learn", new RelatedConcept("Scikit-Learn", "CONCEPT-REL-SCIKIT_LEARN", "Machine Learning", "LIBRARY", "Machine learning library")),
+            Map.entry("sklearn", new RelatedConcept("Scikit-Learn", "CONCEPT-REL-SCIKIT_LEARN", "Machine Learning", "LIBRARY", "Machine learning library"))
+    );
+
+    public static RelatedConcept findRelatedConcept(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String n = raw.trim().toLowerCase(Locale.ROOT);
+        return RELATED_CONCEPTS.get(n);
+    }
+
+    public static String normalizeOptional(String raw) {
+        String canonical = normalize(raw);
+        if (canonical != null) return canonical;
+        RelatedConcept rc = findRelatedConcept(raw);
+        return rc != null ? rc.name() : null;
+    }
+
     public static String normalize(String raw) {
         if (raw == null) return null;
         String n = raw.trim().toLowerCase(Locale.ROOT);

@@ -293,3 +293,54 @@ def test_fastapi_endpoints_adversarial_and_legacy_isolation():
     rn4 = client.post("/nlp/normalize", json={"label": "Python"})
     assert rn4.status_code == 200
     assert rn4.json()["canonical"] == "Python"
+
+
+def test_extract_related_skills_isolated():
+    """Verify related skill extraction preserves tools/frameworks without canonical promotion."""
+    # Test Spring Boot
+    rel_spring = nlp.extract_related_skills("Built backend microservices using Spring Boot and PostgreSQL.")
+    spring_concepts = [r["concept_id"] for r in rel_spring]
+    assert "CONCEPT-REL-SPRING_BOOT" in spring_concepts
+    # Bare spring must NOT match
+    bare_spring = nlp.extract_related_skills("Took a long vacation in the spring of 2024 near the mountain spring.")
+    assert bare_spring == []
+
+    # Test PyTorch, Docker, Kubernetes
+    text = "Experience with PyTorch, Docker containers and Kubernetes clusters for deployment."
+    rel = nlp.extract_related_skills(text)
+    cids = {r["concept_id"]: r for r in rel}
+    assert "CONCEPT-REL-PYTORCH" in cids
+    assert cids["CONCEPT-REL-PYTORCH"]["related_canonical"] == "Deep Learning"
+    assert cids["CONCEPT-REL-PYTORCH"]["relation_type"] == "FRAMEWORK"
+
+    assert "CONCEPT-REL-DOCKER" in cids
+    assert cids["CONCEPT-REL-DOCKER"]["related_canonical"] == "DevOps"
+    assert cids["CONCEPT-REL-DOCKER"]["relation_type"] == "TOOL"
+
+    assert "CONCEPT-REL-KUBERNETES" in cids
+    assert cids["CONCEPT-REL-KUBERNETES"]["related_canonical"] == "DevOps"
+    assert cids["CONCEPT-REL-KUBERNETES"]["relation_type"] == "TOOL"
+
+
+def test_nlp_skills_endpoint_includes_related_skills():
+    """Verify /nlp/skills endpoint returns canonical skills and related skills distinctly."""
+    from fastapi.testclient import TestClient
+    from main import app
+    client = TestClient(app)
+
+    # Resume with Spring Boot only: must NOT have Java in canonical skills
+    resp = client.post("/nlp/skills", json={"text": "Backend engineer skilled in Spring Boot microservices."})
+    assert resp.status_code == 200
+    data = resp.json()
+    canonical_skills = [s["canonical"] for s in data["skills"]]
+    assert "Java" not in canonical_skills
+    assert "related_skills" in data
+    assert any(r["concept_id"] == "CONCEPT-REL-SPRING_BOOT" for r in data["related_skills"])
+
+    # Resume with both Java and Spring Boot
+    resp2 = client.post("/nlp/skills", json={"text": "Senior Java developer building enterprise services with Spring Boot."})
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    canonical_skills2 = [s["canonical"] for s in data2["skills"]]
+    assert "Java" in canonical_skills2
+    assert any(r["concept_id"] == "CONCEPT-REL-SPRING_BOOT" for r in data2["related_skills"])

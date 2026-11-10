@@ -169,6 +169,24 @@ _SYNONYM_RE = {
     for syn, canonical in SYNONYMS.items()
 }
 
+_RELATED_PHRASE_RE = {
+    "spring boot": ("CONCEPT-REL-SPRING_BOOT", "Java", "FRAMEWORK", re.compile(r"(?<![A-Za-z0-9+#])spring\s+boot(?![A-Za-z0-9+#])", re.IGNORECASE)),
+    "spring framework": ("CONCEPT-REL-SPRING_FRAMEWORK", "Java", "FRAMEWORK", re.compile(r"(?<![A-Za-z0-9+#])spring\s+framework(?![A-Za-z0-9+#])", re.IGNORECASE)),
+    "pytorch": ("CONCEPT-REL-PYTORCH", "Deep Learning", "FRAMEWORK", re.compile(r"(?<![A-Za-z0-9+#])pytorch(?![A-Za-z0-9+#])", re.IGNORECASE)),
+    "tensorflow": ("CONCEPT-REL-TENSORFLOW", "Deep Learning", "FRAMEWORK", re.compile(r"(?<![A-Za-z0-9+#])tensorflow(?![A-Za-z0-9+#])", re.IGNORECASE)),
+    "kubernetes": ("CONCEPT-REL-KUBERNETES", "DevOps", "TOOL", re.compile(r"(?<![A-Za-z0-9+#])kubernetes(?![A-Za-z0-9+#])", re.IGNORECASE)),
+    "k8s": ("CONCEPT-REL-KUBERNETES", "DevOps", "TOOL", re.compile(r"(?<![A-Za-z0-9+#])k8s(?![A-Za-z0-9+#])", re.IGNORECASE)),
+    "docker": ("CONCEPT-REL-DOCKER", "DevOps", "TOOL", re.compile(r"(?<![A-Za-z0-9+#])docker(?![A-Za-z0-9+#])", re.IGNORECASE)),
+    "fastapi": ("CONCEPT-REL-FASTAPI", "Python", "FRAMEWORK", re.compile(r"(?<![A-Za-z0-9+#])fastapi(?![A-Za-z0-9+#])", re.IGNORECASE)),
+    "django": ("CONCEPT-REL-DJANGO", "Python", "FRAMEWORK", re.compile(r"(?<![A-Za-z0-9+#])django(?![A-Za-z0-9+#])", re.IGNORECASE)),
+    "flask": ("CONCEPT-REL-FLASK", "Python", "FRAMEWORK", re.compile(r"(?<![A-Za-z0-9+#])flask(?![A-Za-z0-9+#])", re.IGNORECASE)),
+    "typescript": ("CONCEPT-REL-TYPESCRIPT", "JavaScript", "LANGUAGE_SUPERSET", re.compile(r"(?<![A-Za-z0-9+#])typescript(?![A-Za-z0-9+#])", re.IGNORECASE)),
+    "pandas": ("CONCEPT-REL-PANDAS", "Data Analysis", "LIBRARY", re.compile(r"(?<![A-Za-z0-9+#])pandas(?![A-Za-z0-9+#])", re.IGNORECASE)),
+    "numpy": ("CONCEPT-REL-NUMPY", "Data Analysis", "LIBRARY", re.compile(r"(?<![A-Za-z0-9+#])numpy(?![A-Za-z0-9+#])", re.IGNORECASE)),
+    "scikit-learn": ("CONCEPT-REL-SCIKIT_LEARN", "Machine Learning", "LIBRARY", re.compile(r"(?<![A-Za-z0-9+#])scikit-learn(?![A-Za-z0-9+#])", re.IGNORECASE)),
+    "sklearn": ("CONCEPT-REL-SCIKIT_LEARN", "Machine Learning", "LIBRARY", re.compile(r"(?<![A-Za-z0-9+#])sklearn(?![A-Za-z0-9+#])", re.IGNORECASE)),
+}
+
 
 def _clean_label(label: str) -> str:
     """Sanitize label: remove bullets, quotes, surrounding brackets, and redundant spaces."""
@@ -325,6 +343,29 @@ def extract_skills(text: str):
             found[canonical] = syn
     skills = [{"raw": raw, "canonical": canon, "confidence": 1.0} for canon, raw in sorted(found.items())]
     return skills, "taxonomy-lexicon"
+
+
+def extract_related_skills(text: str) -> list[dict]:
+    """Scan text for explicit related technical concepts.
+
+    Extracts distinct related technical concepts (tools, frameworks, libraries)
+    with their concept ID, related canonical domain, and relation type.
+    Ordinary ambiguous words (such as standalone 'spring') are never matched.
+    """
+    if not text:
+        return []
+    found = {}
+    for phrase, (concept_id, related_canonical, rel_type, rx) in _RELATED_PHRASE_RE.items():
+        m = rx.search(text)
+        if m:
+            span_text = text[m.start():m.end()]
+            found[concept_id] = {
+                "raw": span_text,
+                "concept_id": concept_id,
+                "related_canonical": related_canonical,
+                "relation_type": rel_type,
+            }
+    return sorted(found.values(), key=lambda x: x["concept_id"])
 
 
 def engine_mode():

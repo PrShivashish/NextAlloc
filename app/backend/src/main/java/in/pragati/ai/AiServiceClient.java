@@ -3,6 +3,7 @@ package in.pragati.ai;
 import java.time.Duration;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.boot.web.client.ClientHttpRequestFactorySettings;
 import org.springframework.boot.web.client.ClientHttpRequestFactories;
 import org.springframework.http.client.ClientHttpRequestFactory;
@@ -54,7 +55,21 @@ public class AiServiceClient {
                                  ModelStats model, List<OptAssignment> global, List<OptAssignment> greedy) { }
 
     public record ExtractedSkill(String raw, String canonical, double confidence) { }
-    public record SkillsResult(List<ExtractedSkill> skills, String engine) { }
+    public record ExtractedRelatedSkill(
+            String raw,
+            @JsonProperty("concept_id") String conceptId,
+            @JsonProperty("related_canonical") String relatedCanonical,
+            @JsonProperty("relation_type") String relationType
+    ) { }
+    public record SkillsResult(
+            List<ExtractedSkill> skills,
+            @JsonProperty("related_skills") List<ExtractedRelatedSkill> relatedSkills,
+            String engine
+    ) {
+        public SkillsResult(List<ExtractedSkill> skills, String engine) {
+            this(skills, List.of(), engine);
+        }
+    }
 
     public record GapFactor(String key, String label, double fit, double weight,
                             double contribution, double lostPoints) { }

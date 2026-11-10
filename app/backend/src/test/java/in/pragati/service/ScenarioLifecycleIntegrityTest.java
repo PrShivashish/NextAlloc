@@ -52,6 +52,9 @@ public class ScenarioLifecycleIntegrityTest {
     @Autowired
     private CandidateAcademicRecordRepository academicRepo;
 
+    @Autowired
+    private CandidateRelatedSkillRepository relatedSkillRepo;
+
     private AuthUser adminUser;
 
     @BeforeEach
@@ -63,6 +66,7 @@ public class ScenarioLifecycleIntegrityTest {
         eligSnapshotRepo.deleteAll();
         evidenceRepo.deleteAll();
         academicRepo.deleteAll();
+        relatedSkillRepo.deleteAll();
         assignmentRepo.deleteAll();
         runRepo.deleteAll();
     }
@@ -259,5 +263,48 @@ public class ScenarioLifecycleIntegrityTest {
         assertEquals(0, runRepo.count());
         assertEquals(0, eligSnapshotRepo.count());
         assertEquals(0, evidenceRepo.count());
+        assertEquals(0, relatedSkillRepo.count());
+    }
+
+    @Test
+    @DisplayName("Check E: Candidate-submitted related skills without allocation runs is protected from scenario reset")
+    void testCheckE_candidateRelatedSkillsWithoutRunsIsProtected() {
+        cleanBaseline();
+
+        // 1. Clean load scenario
+        DatasetSnapshot ds = scenarioService.load(ScenarioKey.MICRO_CONFLICT, adminUser);
+        assertNotNull(ds);
+
+        // 2. Candidate submits related skill claim
+        CandidateProfile cand = profileRepo.findAll().stream().findFirst().orElseThrow();
+
+        CandidateRelatedSkill relSkill = new CandidateRelatedSkill();
+        relSkill.candidateId = cand.id;
+        relSkill.rawLabel = "Spring Boot";
+        relSkill.conceptId = "CONCEPT-REL-SPRING_BOOT";
+        relSkill.relatedCanonical = "Java";
+        relSkill.relationshipType = "FRAMEWORK";
+        relSkill.taxonomyVersion = SkillTaxonomy.TAXONOMY_VERSION;
+        relSkill.claimSource = SkillClaimSource.SELF_DECLARED;
+        relSkill.evidenceStatus = SkillEvidenceStatus.UNVERIFIED;
+        relSkill = relatedSkillRepo.save(relSkill);
+
+        assertEquals(0, runRepo.count(), "Precondition: zero allocation runs exist");
+        assertEquals(0, eligSnapshotRepo.count(), "Precondition: zero snapshots exist");
+        assertEquals(1, relatedSkillRepo.count(), "Precondition: 1 related skill claim exists");
+
+        // 3. Attempt to reload scenario: must be rejected with HTTP 409 Conflict
+        ApiException ex = assertThrows(ApiException.class, () -> {
+            scenarioService.load(ScenarioKey.MICRO_CONFLICT, adminUser);
+        });
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+        assertTrue(ex.getMessage().contains("Cannot reload or reset demonstration scenarios while candidate-submitted related skill records exist"),
+                "Message must clearly explain related skill records are protected");
+
+        // 4. Verify candidate related skill was NOT cascaded, deleted, or orphaned
+        assertEquals(1, relatedSkillRepo.count(), "Related skill record must remain preserved");
+        assertEquals(cand.id, relatedSkillRepo.findAll().get(0).candidateId);
+        assertEquals("CONCEPT-REL-SPRING_BOOT", relatedSkillRepo.findAll().get(0).conceptId);
     }
 }

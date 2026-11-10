@@ -123,7 +123,8 @@ def optimize(req: OptimizeRequest):
 @app.post("/nlp/skills")
 def skills(req: SkillsRequest):
     found, engine = nlp.extract_skills(req.text)
-    return {"skills": found, "engine": engine}
+    related = nlp.extract_related_skills(req.text)
+    return {"skills": found, "related_skills": related, "engine": engine}
 
 
 @app.post("/nlp/normalize")

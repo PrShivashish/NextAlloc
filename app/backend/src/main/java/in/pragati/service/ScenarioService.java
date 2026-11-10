@@ -16,9 +16,11 @@ import in.pragati.repo.AllocationRunRepository;
 import in.pragati.repo.AssignmentRepository;
 import in.pragati.repo.CandidateAcademicRecordRepository;
 import in.pragati.repo.CandidateEvidenceRepository;
+import in.pragati.repo.CandidateRelatedSkillRepository;
 import in.pragati.repo.DatasetSnapshotRepository;
 import in.pragati.security.AuthUser;
 import in.pragati.seed.ScenarioSeeder;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /** Scenario lifecycle: load (seed) the active dataset and expose the current snapshot. */
 @Service
@@ -39,6 +41,11 @@ public class ScenarioService {
             + "Candidate-submitted records must not be deleted or orphaned. "
             + "To test another scenario, launch an isolated demonstration instance or preserve applicant records.";
 
+    public static final String ERROR_CANDIDATE_SKILLS_PRESERVED =
+            "Cannot reload or reset demonstration scenarios while candidate-submitted related skill records exist. "
+            + "Candidate-submitted records must not be deleted or orphaned. "
+            + "To test another scenario, launch an isolated demonstration instance or preserve applicant records.";
+
     private final ScenarioSeeder seeder;
     private final DatasetSnapshotRepository snapshots;
     private final AllocationRunRepository runs;
@@ -46,14 +53,17 @@ public class ScenarioService {
     private final AssignmentRepository assignments;
     private final CandidateEvidenceRepository candidateEvidences;
     private final CandidateAcademicRecordRepository candidateAcademicRecords;
+    private final CandidateRelatedSkillRepository candidateRelatedSkills;
     private final AuditService audit;
 
+    @Autowired
     public ScenarioService(ScenarioSeeder seeder, DatasetSnapshotRepository snapshots,
                            AllocationRunRepository runs,
                            AllocationEligibilitySnapshotRepository eligSnapshots,
                            AssignmentRepository assignments,
                            CandidateEvidenceRepository candidateEvidences,
                            CandidateAcademicRecordRepository candidateAcademicRecords,
+                           CandidateRelatedSkillRepository candidateRelatedSkills,
                            AuditService audit) {
         this.seeder = seeder;
         this.snapshots = snapshots;
@@ -62,7 +72,18 @@ public class ScenarioService {
         this.assignments = assignments;
         this.candidateEvidences = candidateEvidences;
         this.candidateAcademicRecords = candidateAcademicRecords;
+        this.candidateRelatedSkills = candidateRelatedSkills;
         this.audit = audit;
+    }
+
+    public ScenarioService(ScenarioSeeder seeder, DatasetSnapshotRepository snapshots,
+                           AllocationRunRepository runs,
+                           AllocationEligibilitySnapshotRepository eligSnapshots,
+                           AssignmentRepository assignments,
+                           CandidateEvidenceRepository candidateEvidences,
+                           CandidateAcademicRecordRepository candidateAcademicRecords,
+                           AuditService audit) {
+        this(seeder, snapshots, runs, eligSnapshots, assignments, candidateEvidences, candidateAcademicRecords, null, audit);
     }
 
     public Optional<DatasetSnapshot> currentSnapshot() {
@@ -87,6 +108,9 @@ public class ScenarioService {
         }
         if (candidateEvidences.count() > 0 || candidateAcademicRecords.count() > 0) {
             throw ApiException.conflict(ERROR_CANDIDATE_EVIDENCE_PRESERVED);
+        }
+        if (candidateRelatedSkills != null && candidateRelatedSkills.count() > 0) {
+            throw ApiException.conflict(ERROR_CANDIDATE_SKILLS_PRESERVED);
         }
     }
 
