@@ -160,7 +160,14 @@ public class OfferService {
             throw ApiException.badRequest("Offer cannot be accepted from status: " + offer.status);
         }
 
-        // Concurrency Guard: Lock Opportunity and check remaining seat capacity
+        // Concurrency Guard 1: Candidate active-placement uniqueness across operational cycles/runs
+        long candidateActive = offerRepo.countByCandidateIdAndStatusIn(
+                p.id, Set.of(OfferStatus.ACCEPTED, OfferStatus.JOINED));
+        if (candidateActive > 0) {
+            throw ApiException.conflict("Candidate already holds an active internship placement. You must decline your existing accepted seat before accepting a new offer.");
+        }
+
+        // Concurrency Guard 2: Lock Opportunity and check remaining seat capacity across all runs
         Opportunity opp = oppRepo.findByIdForUpdate(offer.opportunityId)
                 .orElseThrow(() -> ApiException.notFound("Opportunity not found: " + offer.opportunityId));
 

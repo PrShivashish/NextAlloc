@@ -19,6 +19,7 @@ public interface OfferRepository extends JpaRepository<Offer, Long> {
     List<Offer> findByOpportunityIdAndStatus(Long opportunityId, OfferStatus status);
     List<Offer> findByRunId(Long runId);
     long countByOpportunityIdAndStatusIn(Long opportunityId, Collection<OfferStatus> statuses);
+    long countByCandidateIdAndStatusIn(Long candidateId, Collection<OfferStatus> statuses);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT o FROM Offer o WHERE o.id = :id")

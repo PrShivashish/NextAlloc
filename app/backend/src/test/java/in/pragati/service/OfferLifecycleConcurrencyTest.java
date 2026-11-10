@@ -343,4 +343,65 @@ public class OfferLifecycleConcurrencyTest {
                 opp.id, List.of(OfferStatus.ACCEPTED, OfferStatus.JOINED));
         assertEquals(1, activeInDb, "Active seats in database must strictly not exceed opportunity capacity (1)");
     }
+
+    @Test
+    @DisplayName("Cross-Run Inventory Guard: Candidate cannot hold duplicate active placements across runs, and opportunity capacity is globally bounded")
+    void testCrossRunCandidateUniquenessAndCapacityProtection() {
+        AllocationRun run1 = testRun;
+        AllocationRun run2 = runRepo.findByRunCode("RUN-OFFER-TEST-2").orElseGet(() -> {
+            AllocationRun r = new AllocationRun();
+            r.runCode = "RUN-OFFER-TEST-2";
+            r.number = 1000;
+            r.scenario = ScenarioKey.STANDARD_SHOWCASE;
+            r.snapshotId = 1L;
+            r.policyName = "Test Policy 2";
+            r.policyKey = "balanced";
+            r.policyVersion = "1.0.0";
+            r.weightsJson = "{}";
+            r.status = RunStatus.COMPLETED;
+            return runRepo.save(r);
+        });
+
+        Opportunity opp1 = createOpportunity("Cross-Run Opp 1", 1);
+        Opportunity opp2 = createOpportunity("Cross-Run Opp 2", 1);
+
+        // 1. Candidate A receives Offer 1 in Run 1 and Offer 2 in Run 2
+        Offer offer1 = createOffer(run1.id, candA.id, opp1.id, OfferStatus.OFFERED);
+        Offer offer2 = createOffer(run2.id, candA.id, opp2.id, OfferStatus.OFFERED);
+
+        // Candidate A accepts Offer 1 in Run 1 -> Success
+        var acc1 = offerService.acceptOffer(auth(candUserA), offer1.id);
+        assertEquals(OfferStatus.ACCEPTED, acc1.status());
+
+        // Idempotency: Candidate A accepts Offer 1 again -> Success without error
+        var reAcc1 = offerService.acceptOffer(auth(candUserA), offer1.id);
+        assertEquals(OfferStatus.ACCEPTED, reAcc1.status());
+
+        // 2. Candidate A attempts to accept Offer 2 in Run 2 while Offer 1 is still active
+        // MUST BE REJECTED with 409 Conflict
+        ApiException candConflict = assertThrows(ApiException.class, () ->
+                offerService.acceptOffer(auth(candUserA), offer2.id));
+        assertEquals(409, candConflict.getStatus().value(), "Must reject with 409 Conflict");
+        assertTrue(candConflict.getMessage().contains("already holds an active internship placement"));
+
+        // 3. Cross-Run Opportunity Capacity: Opp 1 has capacity 1, already occupied by Candidate A
+        // Candidate B receives an offer for Opp 1 in Run 2
+        Offer offerOpp1CandB = createOffer(run2.id, candB.id, opp1.id, OfferStatus.OFFERED);
+        ApiException oppFullConflict = assertThrows(ApiException.class, () ->
+                offerService.acceptOffer(auth(candUserB), offerOpp1CandB.id));
+        assertEquals(409, oppFullConflict.getStatus().value(), "Must reject with 409 Conflict");
+        assertTrue(oppFullConflict.getMessage().contains("capacity is full"));
+
+        // 4. Candidate A declines Offer 1 -> seat is released and candidate is no longer holding active placement
+        offerService.declineOffer(auth(candUserA), offer1.id, "Switching preference");
+        assertEquals(0, offerRepo.countByCandidateIdAndStatusIn(candA.id, List.of(OfferStatus.ACCEPTED, OfferStatus.JOINED)));
+
+        // Now Candidate A can successfully accept Offer 2
+        var acc2 = offerService.acceptOffer(auth(candUserA), offer2.id);
+        assertEquals(OfferStatus.ACCEPTED, acc2.status());
+
+        // And Candidate B can now successfully accept the freed seat on Opp 1
+        var accB = offerService.acceptOffer(auth(candUserB), offerOpp1CandB.id);
+        assertEquals(OfferStatus.ACCEPTED, accB.status());
+    }
 }
