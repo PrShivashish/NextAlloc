@@ -47,9 +47,12 @@ def test_verified_equivalent_aliases():
 def test_corrected_false_equivalence_aliases():
     """Gate A corrections: K8s, CI/CD, Frontend, Backend, Tally must NOT be verified aliases."""
     corrected_cases = [
+        ("kubernetes", "DevOps", "container orchestration platform"),
+        ("docker", "DevOps", "container runtime tool"),
         ("k8s", "DevOps", "tool abbreviation"),
         ("ci/cd", "DevOps", "engineering practice"),
         ("ci cd", "DevOps", "engineering practice"),
+        ("frontend", "Web Development", "sub-discipline"),
         ("front-end", "Web Development", "sub-discipline"),
         ("back-end", "Web Development", "sub-discipline"),
         ("backend", "Web Development", "sub-discipline"),
@@ -143,8 +146,147 @@ def test_label_cleaning_and_boundary_robustness():
 
 
 def test_valid_resume_extraction():
-    text = "Experienced in Python, SQL, and UI/UX design. Built models with Docker and cloud on AWS."
+    text = "Experienced in Python, SQL, and UI/UX design. Built DevOps pipelines and cloud on AWS."
     skills, engine = nlp.extract_skills(text)
     canonicals = {s["canonical"] for s in skills}
     assert {"Python", "SQL", "UI/UX Design", "DevOps", "Cloud Computing"} <= canonicals
     assert engine == "taxonomy-lexicon"
+
+
+def test_resume_extraction_unsafe_coercions_prevented():
+    """Gate B & Gate C: Unsafe tool/subdiscipline mentions must NOT manufacture broad canonical qualifications."""
+    # 1. Resume mentioning only Kubernetes -> must NOT extract DevOps
+    text_k8s = "Senior engineer managing microservices using Kubernetes orchestration and pod scaling."
+    skills_k8s, _ = nlp.extract_skills(text_k8s)
+    canonicals_k8s = {s["canonical"] for s in skills_k8s}
+    assert "DevOps" not in canonicals_k8s, "Kubernetes alone must NOT manufacture DevOps in resume extraction"
+
+    # 2. Resume mentioning only Docker -> must NOT extract DevOps
+    text_docker = "Automated container builds using Docker compose and container packaging."
+    skills_docker, _ = nlp.extract_skills(text_docker)
+    canonicals_docker = {s["canonical"] for s in skills_docker}
+    assert "DevOps" not in canonicals_docker, "Docker alone must NOT manufacture DevOps in resume extraction"
+
+    # 3. Resume mentioning only frontend -> must NOT extract Web Development
+    text_frontend = "Passionate frontend engineer working on responsive design and mobile layouts."
+    skills_frontend, _ = nlp.extract_skills(text_frontend)
+    canonicals_frontend = {s["canonical"] for s in skills_frontend}
+    assert "Web Development" not in canonicals_frontend, "Frontend alone must NOT manufacture Web Development in resume extraction"
+
+    # 4. Resume explicitly mentioning DevOps -> correctly extracts DevOps
+    text_devops = "Senior DevOps practitioner working across infrastructure and release engineering."
+    skills_devops, _ = nlp.extract_skills(text_devops)
+    canonicals_devops = {s["canonical"] for s in skills_devops}
+    assert "DevOps" in canonicals_devops, "Explicit DevOps mention must be recognized"
+
+    # 5. Resume explicitly mentioning Web Development -> correctly extracts Web Development
+    text_web = "Full-stack engineer with 3 years of Web Development experience."
+    skills_web, _ = nlp.extract_skills(text_web)
+    canonicals_web = {s["canonical"] for s in skills_web}
+    assert "Web Development" in canonicals_web, "Explicit Web Development mention must be recognized"
+
+    # 6. Resume mentioning both exact skill and related tool -> extracts exact skill only
+    text_mixed = "Backend engineer writing Python services packaged with Docker and deployed via Kubernetes."
+    skills_mixed, _ = nlp.extract_skills(text_mixed)
+    canonicals_mixed = {s["canonical"] for s in skills_mixed}
+    assert "Python" in canonicals_mixed, "Exact canonical Python must be extracted"
+    assert "DevOps" not in canonicals_mixed, "DevOps must NOT be manufactured from Docker or Kubernetes"
+
+
+def test_fastapi_endpoints_adversarial_and_legacy_isolation():
+    """Security Gate B & C: FastAPI HTTP route invocation with adversarial payloads.
+
+    Verifies that:
+    1. /nlp/skills and /nlp/normalize reject unsafe coercions over real HTTP requests.
+    2. Injected legacy/version fields ('v0_legacy', 'legacy', query params) can NEVER
+       trigger legacy replay over HTTP endpoints.
+    3. Malformed payloads are handled securely according to Pydantic schemas.
+    """
+    from starlette.testclient import TestClient
+    import main
+
+    client = TestClient(main.app)
+
+    # 1. Kubernetes-only payload -> skills must be empty
+    r1 = client.post("/nlp/skills", json={"text": "Kubernetes orchestration and container management"})
+    assert r1.status_code == 200
+    assert r1.json()["skills"] == []
+
+    # 2. Docker-only payload -> skills must be empty
+    r2 = client.post("/nlp/skills", json={"text": "Docker container packaging and dockerfile authoring"})
+    assert r2.status_code == 200
+    assert r2.json()["skills"] == []
+
+    # 3. Frontend-only payload -> skills must be empty
+    r3 = client.post("/nlp/skills", json={"text": "Frontend styling and responsive web layouts"})
+    assert r3.status_code == 200
+    assert r3.json()["skills"] == []
+
+    # 4. Explicit DevOps mention -> returns DevOps
+    r4 = client.post("/nlp/skills", json={"text": "Senior DevOps engineer with CI/CD background"})
+    assert r4.status_code == 200
+    extracted_4 = {s["canonical"] for s in r4.json()["skills"]}
+    assert "DevOps" in extracted_4
+
+    # 5. Explicit Web Development mention -> returns Web Development
+    r5 = client.post("/nlp/skills", json={"text": "Full-stack Web Development experience"})
+    assert r5.status_code == 200
+    extracted_5 = {s["canonical"] for s in r5.json()["skills"]}
+    assert "Web Development" in extracted_5
+
+    # 6. Mixed text: Python with Kubernetes -> Python present, DevOps absent
+    r6 = client.post("/nlp/skills", json={"text": "Python microservices deployed on Kubernetes"})
+    assert r6.status_code == 200
+    extracted_6 = {s["canonical"] for s in r6.json()["skills"]}
+    assert "Python" in extracted_6
+    assert "DevOps" not in extracted_6
+
+    # 7. Injected legacy version field -> version is ignored, legacy mode CANNOT be activated
+    r7 = client.post("/nlp/skills", json={"text": "Kubernetes", "version": "v0_legacy"})
+    assert r7.status_code == 200
+    assert r7.json()["skills"] == []
+
+    # 8. Injected mode/extra fields attempting legacy activation
+    r8 = client.post("/nlp/skills", json={"text": "Docker", "mode": "legacy", "extra": "v0_legacy"})
+    assert r8.status_code == 200
+    assert r8.json()["skills"] == []
+
+    # 9. Injected query parameter attempting legacy activation
+    r9 = client.post("/nlp/skills?version=v0_legacy&mode=legacy", json={"text": "frontend developer"})
+    assert r9.status_code == 200
+    assert r9.json()["skills"] == []
+
+    # 10. Malformed / edge-case inputs
+    # 10a. Empty string
+    r10a = client.post("/nlp/skills", json={"text": ""})
+    assert r10a.status_code == 200
+    assert r10a.json()["skills"] == []
+
+    # 10b. Missing required body or non-dict
+    r10b = client.post("/nlp/skills", json={})
+    assert r10b.status_code == 200
+    assert r10b.json()["skills"] == []
+
+    # 10c. Integer text field (Pydantic validation error)
+    r10c = client.post("/nlp/skills", json={"text": 12345})
+    assert r10c.status_code in (200, 422)  # Pydantic may coerce or reject; if 200, skills must be empty
+    if r10c.status_code == 200:
+        assert r10c.json()["skills"] == []
+
+    # 11. Normalize endpoint security and isolation:
+    # 11a. Injected version in /nlp/normalize -> cannot trigger legacy mode
+    rn1 = client.post("/nlp/normalize", json={"label": "kubernetes", "version": "v0_legacy"})
+    assert rn1.status_code == 200
+    assert rn1.json()["canonical"] is None
+
+    rn2 = client.post("/nlp/normalize", json={"label": "docker", "mode": "legacy"})
+    assert rn2.status_code == 200
+    assert rn2.json()["canonical"] is None
+
+    rn3 = client.post("/nlp/normalize", json={"label": "frontend"})
+    assert rn3.status_code == 200
+    assert rn3.json()["canonical"] is None
+
+    rn4 = client.post("/nlp/normalize", json={"label": "Python"})
+    assert rn4.status_code == 200
+    assert rn4.json()["canonical"] == "Python"

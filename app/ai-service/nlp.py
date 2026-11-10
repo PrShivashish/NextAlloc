@@ -37,7 +37,7 @@ SYNONYMS = {
     "microsoft excel": "Excel", "ms-excel": "Excel", "spreadsheet": "Excel",
     "powerbi": "Power BI", "power-bi": "Power BI", "data visualization": "Tableau",
     "full stack": "Web Development", "full-stack": "Web Development", "fullstack": "Web Development",
-    "web dev": "Web Development", "frontend": "Web Development",
+    "web dev": "Web Development",
     "react.js": "React", "reactjs": "React", "react js": "React",
     "node": "Node.js", "node js": "Node.js", "nodejs": "Node.js", "node-js": "Node.js",
     "js": "JavaScript",
@@ -46,7 +46,6 @@ SYNONYMS = {
     "tailwind": "HTML CSS", "tailwind css": "HTML CSS",
     "git github": "Git", "github": "Git", "gitlab": "Git",
     "aws": "Cloud Computing", "azure": "Cloud Computing", "gcp": "Cloud Computing", "google cloud": "Cloud Computing",
-    "docker": "DevOps", "kubernetes": "DevOps",
     "cyber security": "Cybersecurity", "infosec": "Cybersecurity", "information security": "Cybersecurity",
     "natural language processing": "NLP",
     "neural networks": "Deep Learning",
@@ -79,6 +78,8 @@ RELATION_UNRELATED_TERM = "UNRELATED_TERM"
 # Any query in this dictionary strictly abstains from mandatory qualification (is_mandatory_eligible = False).
 RELATED_CONCEPTS = {
     # DevOps tools and practices
+    "kubernetes": ("DevOps", "Container orchestration platform; related engineering tool, not equivalent to the full DevOps domain"),
+    "docker": ("DevOps", "Container runtime and packaging tool; related engineering tool, not equivalent to the full DevOps domain"),
     "k8s": ("DevOps", "Abbreviation for Kubernetes (container orchestration tool); related to DevOps, but not equivalent to the full DevOps domain"),
     "ci/cd": ("DevOps", "Continuous Integration / Continuous Deployment practice; related engineering discipline, not equivalent to the full DevOps domain"),
     "ci cd": ("DevOps", "Continuous Integration / Continuous Deployment practice; related engineering discipline, not equivalent to the full DevOps domain"),
@@ -87,6 +88,7 @@ RELATED_CONCEPTS = {
     "terraform": ("Cloud Computing", "Infrastructure-as-Code automation tool; related to Cloud Computing and DevOps"),
 
     # Web development sub-disciplines (Narrower specializations, not full web development)
+    "frontend": ("Web Development", "Client-side specialization; sub-discipline of Web Development, does not certify complete Web Development competence"),
     "front-end": ("Web Development", "Client-side specialization; sub-discipline of Web Development, does not certify complete Web Development competence"),
     "back-end": ("Web Development", "Server-side specialization; sub-discipline of Web Development, does not certify complete Web Development competence"),
     "backend": ("Web Development", "Server-side specialization; sub-discipline of Web Development, does not certify complete Web Development competence"),
@@ -288,13 +290,13 @@ def classify_skill_relation(label: str) -> dict:
 def normalize(label: str, mode: str = "strict") -> str | None:
     """Normalize a skill label to its canonical representation.
 
-    In strict mode (default):
-      Enforces Gate A and Gate B invariants: only exact canonicals and approved
-      equivalent aliases satisfy mandatory normalization. Related tools,
-      sub-disciplines, composites, out-of-scope skills, and non-skills strictly return None.
+    Enforces safe relation-aware normalization: only exact canonicals and approved
+    equivalent aliases satisfy mandatory normalization. Related tools (Kubernetes, Docker),
+    sub-disciplines (frontend), composites, out-of-scope skills, and non-skills strictly return None.
     """
     if not label:
         return None
+
     classification = classify_skill_relation(label)
     if classification["is_mandatory_eligible"]:
         return classification["canonical"]
