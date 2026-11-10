@@ -28,7 +28,7 @@ CANONICAL = [
 # Must be unambiguous equivalent labels for the exact canonical skill concept.
 SYNONYMS = {
     "python3": "Python", "py": "Python",
-    "java programming": "Java", "spring boot": "Java", "spring": "Java",
+    "java programming": "Java",
     "c plus plus": "C++", "cpp": "C++",
     "mysql": "SQL", "postgresql": "SQL", "postgres": "SQL", "sql server": "SQL", "databases": "SQL",
     "data analytics": "Data Analysis", "data science": "Data Analysis", "analytics": "Data Analysis",
@@ -105,6 +105,9 @@ RELATED_CONCEPTS = {
     "fastapi": ("Python", "Python web framework; specialized library, not an equivalent qualification for Python"),
     "django": ("Python", "Python full-stack web framework; specialized library, not an equivalent qualification for Python"),
     "flask": ("Python", "Python lightweight microframework; specialized library, not an equivalent qualification for Python"),
+    "spring": ("Java", "Java application framework and ecosystem; related framework, not equivalent to the Java programming language"),
+    "spring boot": ("Java", "Java-based application framework; specialized framework, not equivalent to the Java programming language"),
+    "spring framework": ("Java", "Java application framework; specialized framework, not equivalent to the Java programming language"),
 
     # Related programming languages
     "typescript": ("JavaScript", "Typed programming language superset; distinct language with separate compiler and type system"),

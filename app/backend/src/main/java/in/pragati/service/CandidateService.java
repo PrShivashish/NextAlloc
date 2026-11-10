@@ -8,7 +8,9 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -86,6 +88,12 @@ public class CandidateService {
                 ApiException.notFound("Your profile has not been initialized yet."));
     }
 
+    public CandidateProfile requireSelfProfileForUpdate(AuthUser me) {
+        return profiles.findByUserIdForUpdate(me.id())
+                .or(() -> profiles.findByUserId(me.id()))
+                .orElseThrow(() -> ApiException.notFound("Your profile has not been initialized yet."));
+    }
+
     public record ProfileInput(String fullName, String phone, java.time.LocalDate dob,
                                String qualification, String candidateStatus,
                                String state, String district, String locationType,
@@ -142,45 +150,131 @@ public class CandidateService {
         }
     }
 
-    public record SkillItem(Long id, String raw, String canonical, String source, boolean validated) { }
+    public record SkillItem(
+            Long id,
+            String raw,
+            String canonical,
+            String source,
+            boolean validated,
+            String conceptId,
+            String taxonomyVersion,
+            String originalInput,
+            String claimSource,
+            String evidenceStatus
+    ) {
+        public SkillItem(Long id, String raw, String canonical, String source, boolean validated) {
+            this(id, raw, canonical, source, validated, null, null, null, null, null);
+        }
+    }
 
     public List<SkillItem> mySkills(AuthUser me) {
         CandidateProfile p = requireSelfProfile(me);
         return skills.findByCandidateId(p.id).stream()
-                .map(s -> new SkillItem(s.id, s.rawLabel, s.canonical, s.source.name(), s.validated))
+                .map(s -> new SkillItem(
+                        s.id,
+                        s.rawLabel,
+                        s.canonical,
+                        s.source != null ? s.source.name() : "PROFILE",
+                        s.validated,
+                        s.conceptId,
+                        s.taxonomyVersion,
+                        s.originalInput,
+                        s.claimSource != null ? s.claimSource.name() : "LEGACY_UNSPECIFIED",
+                        s.evidenceStatus != null ? s.evidenceStatus.name() : "UNVERIFIED"
+                ))
                 .toList();
     }
 
     @Transactional
     public List<SkillItem> setSkills(AuthUser me, List<String> labels) {
-        CandidateProfile p = requireSelfProfile(me);
-        Set<String> canonical = new HashSet<>();
+        CandidateProfile p = requireSelfProfileForUpdate(me);
+        if (labels == null) labels = List.of();
+
+        // 1. Group submitted labels by normalized canonical name, retaining first original wording
+        Map<String, String> canonicalToRaw = new LinkedHashMap<>();
         for (String raw : labels) {
-            String c = SkillTaxonomy.normalize(raw);
-            if (c == null) throw ApiException.badRequest("Unrecognized skill: \"" + raw + "\". Please use a skill from the suggested list.");
-            canonical.add(c);
+            if (raw == null || raw.isBlank()) continue;
+            String trimmed = raw.trim();
+            String c = SkillTaxonomy.normalize(trimmed);
+            if (c == null) {
+                throw ApiException.badRequest("Unrecognized skill: \"" + trimmed + "\". Please use a skill from the suggested list.");
+            }
+            if (!canonicalToRaw.containsKey(c)) {
+                canonicalToRaw.put(c, trimmed);
+            }
         }
-        if (canonical.size() > 20) throw ApiException.badRequest("Please keep the list to at most 20 skills.");
-        skills.deleteByCandidateId(p.id);
-        List<SkillItem> out = new ArrayList<>();
-        for (String c : new java.util.TreeSet<>(canonical)) {
-            CandidateSkill s = new CandidateSkill();
-            s.candidateId = p.id;
-            s.rawLabel = c;
-            s.canonical = c;
-            s.source = SkillSource.PROFILE;
-            s.validated = true;
-            out.add(new SkillItem(s.id, c, c, "PROFILE", true));
+
+        if (canonicalToRaw.size() > 20) {
+            throw ApiException.badRequest("Please keep the list to at most 20 skills.");
         }
-        skills.saveAll(out.stream().map(i -> {
-            CandidateSkill s = new CandidateSkill();
-            s.candidateId = p.id;
-            s.rawLabel = i.canonical();
-            s.canonical = i.canonical();
-            s.source = SkillSource.PROFILE;
-            s.validated = true;
-            return s;
-        }).toList());
+
+        // 2. Fetch existing skills to preserve verified status on canonical match
+        List<CandidateSkill> existingSkills = skills.findByCandidateId(p.id);
+        Map<String, CandidateSkill> existingByCanonical = new HashMap<>();
+        for (CandidateSkill es : existingSkills) {
+            existingByCanonical.put(es.canonical, es);
+        }
+
+        // 3. Delete unverified skills that are no longer present in labels.
+        // Genuinely VERIFIED records are preserved even if omitted from manual form.
+        List<CandidateSkill> toDelete = new ArrayList<>();
+        for (CandidateSkill es : existingSkills) {
+            if (!canonicalToRaw.containsKey(es.canonical)) {
+                if (es.evidenceStatus != SkillEvidenceStatus.VERIFIED) {
+                    toDelete.add(es);
+                }
+            }
+        }
+        if (!toDelete.isEmpty()) {
+            skills.deleteAll(toDelete);
+        }
+
+        // 4. Update or insert submitted skills with strict provenance
+        List<CandidateSkill> toSave = new ArrayList<>();
+        for (Map.Entry<String, String> entry : canonicalToRaw.entrySet()) {
+            String canonical = entry.getKey();
+            String originalInput = entry.getValue();
+            CandidateSkill existing = existingByCanonical.get(canonical);
+
+            if (existing != null && existing.evidenceStatus == SkillEvidenceStatus.VERIFIED) {
+                // Existing genuinely VERIFIED record must NOT be deleted or have its status borrowed by a newly created self-declared row.
+                // Preserve the existing entity (its database id, createdAt, claimSource, evidenceStatus, conceptId).
+                if (existing.conceptId == null) {
+                    existing.conceptId = SkillTaxonomy.conceptId(canonical);
+                }
+                if (existing.taxonomyVersion == null) {
+                    existing.taxonomyVersion = SkillTaxonomy.TAXONOMY_VERSION;
+                }
+                toSave.add(existing);
+            } else if (existing != null) {
+                // Existing UNVERIFIED skill: update in-place preserving its primary key ID
+                existing.rawLabel = originalInput;
+                existing.originalInput = originalInput;
+                existing.conceptId = SkillTaxonomy.conceptId(canonical);
+                existing.taxonomyVersion = SkillTaxonomy.TAXONOMY_VERSION;
+                existing.source = SkillSource.PROFILE;
+                existing.claimSource = SkillClaimSource.SELF_DECLARED;
+                existing.evidenceStatus = SkillEvidenceStatus.UNVERIFIED;
+                existing.validated = true;
+                toSave.add(existing);
+            } else {
+                // Newly declared skill: strictly SELF_DECLARED and UNVERIFIED
+                CandidateSkill s = new CandidateSkill();
+                s.candidateId = p.id;
+                s.rawLabel = originalInput;
+                s.canonical = canonical;
+                s.originalInput = originalInput;
+                s.conceptId = SkillTaxonomy.conceptId(canonical);
+                s.taxonomyVersion = SkillTaxonomy.TAXONOMY_VERSION;
+                s.source = SkillSource.PROFILE;
+                s.claimSource = SkillClaimSource.SELF_DECLARED;
+                s.evidenceStatus = SkillEvidenceStatus.UNVERIFIED;
+                s.validated = true;
+                toSave.add(s);
+            }
+        }
+
+        skills.saveAll(toSave);
         p.touch();
         profiles.save(p);
         return mySkills(me);
@@ -341,9 +435,16 @@ public class CandidateService {
         }
 
         r.status = "PROCESSING";
-        List<String> extracted = extractSkills(text);
+        List<ExtractedSkillDetail> extracted = extractSkillDetails(text);
         // Normalized, taxonomy-validated skills only; user confirms before they count.
-        List<String> validated = extracted.stream().distinct().limit(15).toList();
+        Map<String, ExtractedSkillDetail> uniqueCanonicals = new LinkedHashMap<>();
+        for (ExtractedSkillDetail es : extracted) {
+            if (es.canonical() != null && !uniqueCanonicals.containsKey(es.canonical())) {
+                uniqueCanonicals.put(es.canonical(), es);
+            }
+            if (uniqueCanonicals.size() >= 15) break;
+        }
+        List<String> validated = new ArrayList<>(uniqueCanonicals.keySet());
         try { r.skillsJson = json.writeValueAsString(validated); } catch (Exception ignored) { }
 
         // Structured profile suggestions (deterministic, evidence-backed, never auto-applied).
@@ -360,6 +461,14 @@ public class CandidateService {
             }
             var skillsArr = node.putArray("skills");
             for (String s : validated) skillsArr.add(s);
+
+            var detailsArr = node.putArray("skillsDetailed");
+            for (ExtractedSkillDetail es : uniqueCanonicals.values()) {
+                var dn = detailsArr.addObject();
+                dn.put("canonical", es.canonical());
+                dn.put("raw", es.raw());
+            }
+
             var interestsArr = node.putArray("interests");
             for (String s : sugg.interests()) interestsArr.add(s);
             r.suggestionsJson = json.writeValueAsString(node);
@@ -393,7 +502,7 @@ public class CandidateService {
     @Transactional
     public ResumeInfo applySuggestions(AuthUser me, ApplyInput in) {
         if (in == null || in.resumeId() == null) throw ApiException.badRequest("resumeId is required.");
-        CandidateProfile p = requireSelfProfile(me);
+        CandidateProfile p = requireSelfProfileForUpdate(me);
         ResumeFile latest = resumes.findTopByUserIdOrderByIdDesc(me.id())
                 .orElseThrow(() -> ApiException.notFound("Upload a resume first."));
         if (!latest.id.equals(in.resumeId())) {
@@ -405,12 +514,20 @@ public class CandidateService {
         Set<String> suggestedSkills = new HashSet<>();
         Set<String> suggestedInterests = new HashSet<>();
         Set<String> suggestedFields = new HashSet<>();
+        Map<String, String> detailedRawPhrases = new HashMap<>();
         if (latest.suggestionsJson != null) {
             try {
                 var root = json.readTree(latest.suggestionsJson);
                 for (var n : root.path("skills")) suggestedSkills.add(n.asText());
                 for (var n : root.path("interests")) suggestedInterests.add(n.asText());
                 for (var n : root.path("fields")) suggestedFields.add(n.get("field").asText());
+                if (root.has("skillsDetailed")) {
+                    for (var n : root.get("skillsDetailed")) {
+                        if (n.has("canonical") && n.has("raw")) {
+                            detailedRawPhrases.put(n.get("canonical").asText(), n.get("raw").asText());
+                        }
+                    }
+                }
             } catch (Exception ignored) { }
         }
 
@@ -447,11 +564,25 @@ public class CandidateService {
                 if (canonical == null || existing.contains(canonical)) continue;
                 CandidateSkill s = new CandidateSkill();
                 s.candidateId = p.id;
-                s.rawLabel = raw;
+
+                String originalPhrase = detailedRawPhrases.get(canonical);
+                if (originalPhrase != null && !originalPhrase.isBlank()) {
+                    s.originalInput = originalPhrase;
+                    s.rawLabel = originalPhrase;
+                } else {
+                    s.originalInput = null;
+                    s.rawLabel = raw;
+                }
+
                 s.canonical = canonical;
+                s.conceptId = SkillTaxonomy.conceptId(canonical);
+                s.taxonomyVersion = SkillTaxonomy.TAXONOMY_VERSION;
                 s.source = SkillSource.RESUME;
+                s.claimSource = SkillClaimSource.RESUME_EXTRACTED;
+                s.evidenceStatus = SkillEvidenceStatus.UNVERIFIED;
                 s.validated = true;
                 skills.save(s);
+                existing.add(canonical);
             }
         }
         if (in.interests() != null && !in.interests().isEmpty()) {
@@ -507,20 +638,35 @@ public class CandidateService {
         }
     }
 
-    private List<String> extractSkills(String text) {
+    record ExtractedSkillDetail(String raw, String canonical) {}
+
+    private List<ExtractedSkillDetail> extractSkillDetails(String text) {
         // AI-assisted when the AI service is available; deterministic local fallback otherwise.
         if (text == null || text.isBlank()) return List.of();
         try {
             AiServiceClient.SkillsResult res = ai.extractSkills(text);
-            return res.skills().stream().map(AiServiceClient.ExtractedSkill::canonical).toList();
+            if (res != null && res.skills() != null) {
+                return res.skills().stream()
+                        .map(s -> new ExtractedSkillDetail(s.raw(), s.canonical()))
+                        .toList();
+            }
+            return List.of();
         } catch (Exception e) {
-            List<String> found = new ArrayList<>();
-            String lower = text.toLowerCase();
+            List<ExtractedSkillDetail> found = new ArrayList<>();
+            String lower = text.toLowerCase(Locale.ROOT);
             for (String canonical : SkillTaxonomy.CANONICAL) {
-                if (lower.contains(canonical.toLowerCase())) found.add(canonical);
+                if (lower.contains(canonical.toLowerCase(Locale.ROOT))) {
+                    found.add(new ExtractedSkillDetail(canonical, canonical));
+                }
             }
             return found;
         }
+    }
+
+    private List<String> extractSkills(String text) {
+        return extractSkillDetails(text).stream()
+                .map(ExtractedSkillDetail::canonical)
+                .toList();
     }
 
     // ------------------------------------------------------------------

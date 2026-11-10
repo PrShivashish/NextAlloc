@@ -92,6 +92,9 @@ def test_related_technologies_disallow_hard_equivalence():
         ("Scikit-Learn", "Machine Learning"),
         ("Terraform", "Cloud Computing"),
         ("Ansible", "DevOps"),
+        ("Spring Boot", "Java"),
+        ("Spring", "Java"),
+        ("Spring Framework", "Java"),
     ]
     for tool, expected_domain in related_cases:
         rel = nlp.classify_skill_relation(tool)

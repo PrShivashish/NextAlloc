@@ -11,6 +11,13 @@ import java.util.Map;
  */
 public final class SkillTaxonomy {
 
+    public static final String TAXONOMY_VERSION = "nextalloc-2026.11-v1";
+
+    public static String conceptId(String canonical) {
+        if (canonical == null || canonical.isBlank()) return null;
+        return "CONCEPT-" + canonical.trim().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_");
+    }
+
     public static final List<String> CANONICAL = List.of(
             "Python", "Java", "C++", "SQL", "Data Analysis", "Machine Learning", "Excel",
             "Statistics", "Power BI", "Tableau", "Web Development", "React", "Node.js",
@@ -24,7 +31,7 @@ public final class SkillTaxonomy {
 
     private static final Map<String, String> SYNONYMS = Map.ofEntries(
             Map.entry("python3", "Python"), Map.entry("py", "Python"),
-            Map.entry("java programming", "Java"), Map.entry("spring boot", "Java"),
+            Map.entry("java programming", "Java"),
             Map.entry("c plus plus", "C++"), Map.entry("cpp", "C++"),
             Map.entry("mysql", "SQL"), Map.entry("postgresql", "SQL"), Map.entry("postgres", "SQL"),
             Map.entry("sql server", "SQL"), Map.entry("databases", "SQL"),
