@@ -141,7 +141,7 @@ public class OfferService {
      */
     @Transactional
     public CandidateOfferView acceptOffer(AuthUser me, Long offerId) {
-        CandidateProfile p = profileRepo.findByUserId(me.id())
+        CandidateProfile p = profileRepo.findByUserIdForUpdate(me.id())
                 .orElseThrow(() -> ApiException.badRequest("Candidate profile not found."));
 
         Offer offer = offerRepo.findByIdForUpdate(offerId)
@@ -193,7 +193,7 @@ public class OfferService {
      */
     @Transactional
     public CandidateOfferView declineOffer(AuthUser me, Long offerId, String reason) {
-        CandidateProfile p = profileRepo.findByUserId(me.id())
+        CandidateProfile p = profileRepo.findByUserIdForUpdate(me.id())
                 .orElseThrow(() -> ApiException.badRequest("Candidate profile not found."));
 
         Offer offer = offerRepo.findByIdForUpdate(offerId)
@@ -222,6 +222,30 @@ public class OfferService {
 
         audit.log(me, AuditAction.ALLOCATION_COMPLETED, "Offer", String.valueOf(offer.id),
                 "Candidate " + me.name() + " declined offer for opportunity " + oppTitle + ". Reason: " + reason, null);
+
+        return toCandidateOfferView(offer);
+    }
+
+    /**
+     * Administrative cancellation of an offer (releases candidate and seat).
+     */
+    @Transactional
+    public CandidateOfferView cancelOffer(AuthUser me, Long offerId, String reason) {
+        boolean isAdmin = me != null && me.role() != null && me.role().contains("ADMIN");
+        if (!isAdmin) {
+            throw ApiException.forbidden("Only administrators can cancel an offer.");
+        }
+
+        Offer offer = offerRepo.findByIdForUpdate(offerId)
+                .orElseThrow(() -> ApiException.notFound("Offer not found: " + offerId));
+
+        offer.status = OfferStatus.DECLINED;
+        offer.respondedAt = Instant.now();
+        offer.declineReason = "Administrative withdrawal: " + (reason != null ? reason : "Cancelled by admin");
+        offerRepo.save(offer);
+
+        audit.log(me, AuditAction.ALLOCATION_COMPLETED, "Offer", String.valueOf(offer.id),
+                "Administrator " + me.name() + " cancelled offer " + offer.id + ". Reason: " + reason, null);
 
         return toCandidateOfferView(offer);
     }

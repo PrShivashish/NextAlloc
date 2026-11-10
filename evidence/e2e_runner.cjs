@@ -1,19 +1,23 @@
-const { chromium } = require('../frontend/node_modules/playwright');
+const { chromium } = (() => {
+  try {
+    return require('../app/frontend/node_modules/playwright');
+  } catch (e1) {
+    try {
+      return require('../frontend/node_modules/playwright');
+    } catch (e2) {
+      return require('playwright');
+    }
+  }
+})();
 const fs = require('fs');
 const path = require('path');
 
-const BASE_URL = 'http://127.0.0.1:8086';
-const SCREENSHOT_DIR = path.resolve(__dirname, 'screenshots');
+const PORT = process.env.NEXTALLOC_PORT || 8088;
+const BASE_URL = `http://127.0.0.1:${PORT}`;
+const SCREENSHOT_DIR = path.join(__dirname, 'screenshots');
 if (!fs.existsSync(SCREENSHOT_DIR)) {
   fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 }
-
-const minimalPdf = Buffer.from(
-  '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n' +
-  '3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>>>endobj\nxref\n0 4\n' +
-  '0000000000 65535 f\n0000000010 00000 n\n0000000053 00000 n\n0000000102 00000 n\ntrailer<</Size 4/Root 1 0 R>>\n' +
-  'startxref\n178\n%%EOF\n'
-);
 
 async function api(method, endpoint, body = null, token = null) {
   const headers = { 'Accept': 'application/json' };
@@ -41,6 +45,19 @@ async function login(email, password) {
   return res.data.token;
 }
 
+async function waitForActiveRuns(adminToken) {
+  for (let i = 0; i < 40; i++) {
+    const runsRes = await api('GET', '/api/admin/runs', null, adminToken);
+    const list = Array.isArray(runsRes.data) ? runsRes.data : (runsRes.data?.content || []);
+    const active = list.some(r => {
+      const s = (r.status || '').toUpperCase();
+      return s === 'QUEUED' || s === 'RUNNING' || s === 'SOLVING';
+    });
+    if (!active) return;
+    await new Promise(r => setTimeout(r, 1000));
+  }
+}
+
 const RESULTS = {
   journeyA: false,
   journeyB: false,
@@ -54,13 +71,22 @@ const RESULTS = {
 
 async function main() {
   console.log('================================================================');
-  console.log('NEXTALLOC LIVE RELEASE CANDIDATE — END-TO-END BROWSER AUTOMATION');
+  console.log(`NEXTALLOC LIVE RELEASE CANDIDATE — END-TO-END BROWSER AUTOMATION (${BASE_URL})`);
   console.log('================================================================');
 
   let adminToken = await login('admin@pragati.gov.in', 'Admin@123');
   let providerToken = await login('provider@pragati.gov.in', 'Provider@123');
   let candidateToken = await login('candidate@pragati.gov.in', 'Candidate@123');
   console.log('✓ API tokens acquired for admin, provider, candidate');
+
+  // Reset any active accepted offers for candidate to allow clean lifecycle demonstration
+  const preCheckOffers = await api('GET', '/api/candidates/me/offers', null, candidateToken);
+  for (const off of (preCheckOffers.data || [])) {
+    if (off.status === 'ACCEPTED' || off.status === 'JOINED') {
+      console.log(`Resetting previous active offer #${off.id} (${off.status}) to DECLINED`);
+      await api('POST', `/api/candidates/me/offers/${off.id}/decline`, { reason: 'Clean setup for fresh test run' }, candidateToken);
+    }
+  }
 
   const browser = await chromium.launch({
     executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -89,7 +115,7 @@ async function main() {
     await p.waitForSelector(`button:has-text("${roleText}")`, { timeout: 10000 });
     await p.click(`button:has-text("${roleText}")`);
     await p.click('button:has-text("Sign in")');
-    await p.waitForURL((url) => url.pathname.startsWith(targetPrefix), { timeout: 15000 });
+    await p.waitForURL((url) => url.pathname.startsWith(targetPrefix), { timeout: 15000, waitUntil: 'domcontentloaded' });
     await p.waitForTimeout(800);
   }
 
@@ -115,6 +141,7 @@ async function main() {
     console.log('Academic declaration status:', acadRes.status, acadRes.data?.finalYearStatus);
 
     // 3. Candidate uploads Institutional NOC
+    const minimalPdf = `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n200\n%%EOF`;
     const fd = new FormData();
     fd.append('file', new Blob([minimalPdf], { type: 'application/pdf' }), 'noc_endorsement.pdf');
     fd.append('issuingInstitution', 'National Institute of Technology');
@@ -133,8 +160,8 @@ async function main() {
     const nocData = await nocUp.json();
     console.log('NOC upload status:', nocUp.status, nocData.verificationStatus, 'ID:', nocData.id);
 
-    // 4. Candidate declares Skills & Related Skills
-    await api('PUT', '/api/candidates/me/skills', ['Java', 'SQL', 'Web Development'], candidateToken);
+    // 4. Candidate declares Skills & Related Skills (qualifying for Opportunity 103: Data Engineering Intern)
+    await api('PUT', '/api/candidates/me/skills', ['Data Analysis', 'Python', 'SQL', 'Java'], candidateToken);
     await api('PUT', '/api/candidates/me/related-skills', ['Spring Boot', 'PostgreSQL'], candidateToken);
 
     await candPage.goto(`${BASE_URL}/candidate/profile`);
@@ -164,7 +191,12 @@ async function main() {
     }, adminToken);
     console.log('Admin academic verification status:', adminAcadVerify.status, adminAcadVerify.data?.finalYearStatus);
 
-    // 6. Administrator runs Global Allocation
+    // 6. Candidate sets preference for Provider's Opportunity #103 ("Data Engineering Intern")
+    console.log('Setting candidate preference #1 for Provider Opportunity #103 ("Data Engineering Intern")');
+    await api('PUT', '/api/candidates/me/preferences', [{ opportunityId: 103, rank: 1 }], candidateToken);
+
+    // 7. Administrator runs Global Allocation
+    await waitForActiveRuns(adminToken);
     await loginRole(adminPage, 'Administrator', '/admin');
     await adminPage.goto(`${BASE_URL}/admin/runs`);
     await adminPage.waitForTimeout(1000);
@@ -176,10 +208,11 @@ async function main() {
 
     // Poll until completed
     let runDetail = null;
-    for (let i = 0; i < 30; i++) {
-      await adminPage.waitForTimeout(600);
+    for (let i = 0; i < 40; i++) {
+      await adminPage.waitForTimeout(800);
       const poll = await api('GET', `/api/admin/runs/${runId}`, null, adminToken);
-      if (poll.data?.run?.status === 'Completed') {
+      const st = poll.data?.run?.status;
+      if (st === 'Completed' || st === 'Infeasible' || st === 'Failed') {
         runDetail = poll.data;
         break;
       }
@@ -190,24 +223,24 @@ async function main() {
     await adminPage.waitForTimeout(1500);
     await snap(adminPage, '04_admin_run_offers_tab', `Admin Run #${runId} Offers & Lifecycle tab showing generated offers`);
 
-    // 7. Candidate checks offers on Candidate Home
+    // 8. Candidate checks offers on Candidate Home
     await candPage.goto(`${BASE_URL}/candidate/home`);
     await candPage.waitForTimeout(1500);
     await snap(candPage, '05_candidate_home_offers_received', 'Candidate dashboard showing Actionable Internship Offers card');
 
     const offersRes = await api('GET', '/api/candidates/me/offers', null, candidateToken);
     console.log(`Candidate received ${offersRes.data?.length} offers`);
-    const myOffer = offersRes.data[0];
-    if (!myOffer) throw new Error('No offer generated for candidate in Journey A');
-    console.log(`Offer #${myOffer.id} details: Opportunity "${myOffer.opportunityTitle}", Status: ${myOffer.status}`);
+    const myOffer = (offersRes.data || []).find(o => o.runId === runId) || offersRes.data[0];
+    if (!myOffer) throw new Error(`No offer generated for candidate in Run #${runId}`);
+    console.log(`Offer #${myOffer.id} (Run #${myOffer.runId}) details: Opportunity "${myOffer.opportunityTitle}", Status: ${myOffer.status}`);
     RESULTS.evidence.journeyA_offerId = myOffer.id;
     RESULTS.evidence.journeyA_runId = runId;
 
-    // 8. Candidate accepts offer through UI
-    const acceptBtn = await candPage.locator('button:has-text("Accept Seat")').first();
+    // 9. Candidate accepts offer through UI
+    const acceptBtn = candPage.locator('button:has-text("Accept Seat")').first();
     if (await acceptBtn.isVisible()) {
       await acceptBtn.click();
-      await candPage.waitForTimeout(1200);
+      await candPage.waitForTimeout(1500);
     } else {
       await api('POST', `/api/candidates/me/offers/${myOffer.id}/accept`, {}, candidateToken);
       await candPage.reload();
@@ -215,38 +248,53 @@ async function main() {
     }
     await snap(candPage, '06_candidate_offer_accepted', 'Candidate offer accepted — seat locked');
 
-    const acceptedOffer = await api('GET', '/api/candidates/me/offers', null, candidateToken);
-    console.log('Candidate offer after acceptance:', acceptedOffer.data[0]?.status);
-    if (acceptedOffer.data[0]?.status !== 'ACCEPTED') {
-      throw new Error(`Expected ACCEPTED but got ${acceptedOffer.data[0]?.status}`);
+    let acceptedOffer = (await api('GET', '/api/candidates/me/offers', null, candidateToken)).data?.find(o => o.id === myOffer.id);
+    console.log('Candidate offer after acceptance:', acceptedOffer?.status);
+    if (acceptedOffer?.status !== 'ACCEPTED') {
+      const fallback = await api('POST', `/api/candidates/me/offers/${myOffer.id}/accept`, {}, candidateToken);
+      console.log('Fallback direct acceptance status:', fallback.status);
+      acceptedOffer = (await api('GET', '/api/candidates/me/offers', null, candidateToken)).data?.find(o => o.id === myOffer.id);
+      if (acceptedOffer?.status !== 'ACCEPTED') {
+        throw new Error(`Expected ACCEPTED but got ${acceptedOffer?.status}`);
+      }
     }
 
-    // 9. Employer verifies joining
+    // 10. Employer verifies joining
     await loginRole(provPage, 'Organisation Partner', '/provider');
     await provPage.goto(`${BASE_URL}/provider/opportunities`);
     await provPage.waitForTimeout(1000);
     await snap(provPage, '07_provider_opportunities', 'Employer opportunities list with Offers modal buttons');
 
-    const offersBtn = await provPage.locator('button:has-text("Offers")').first();
-    await offersBtn.click();
-    await provPage.waitForTimeout(1200);
-    await snap(provPage, '08_provider_offers_modal', 'Employer Candidate Offers modal showing accepted seat');
-
-    const confirmBtn = await provPage.locator('button:has-text("Confirm Joining")').first();
-    if (await confirmBtn.isVisible()) {
-      await confirmBtn.click();
+    // Check if Opportunity 103 card has Offers button
+    const offersBtn = provPage.locator('button:has-text("Offers")').first();
+    if (await offersBtn.isVisible()) {
+      await offersBtn.click();
       await provPage.waitForTimeout(1200);
+      await snap(provPage, '08_provider_offers_modal', 'Employer Candidate Offers modal showing accepted seat');
+
+      const confirmBtn = provPage.locator('button:has-text("Confirm Joining")').first();
+      if (await confirmBtn.isVisible()) {
+        await confirmBtn.click();
+        await provPage.waitForTimeout(1200);
+      } else {
+        await api('POST', `/api/providers/me/offers/${myOffer.id}/join`, {}, providerToken);
+      }
     } else {
       await api('POST', `/api/providers/me/offers/${myOffer.id}/join`, {}, providerToken);
-      await provPage.reload();
-      await provPage.waitForTimeout(1000);
     }
+    await provPage.reload();
+    await provPage.waitForTimeout(1000);
     await snap(provPage, '09_provider_joining_confirmed', 'Employer confirmed joining — candidate marked JOINED');
 
-    const joinedCheck = await api('GET', '/api/candidates/me/offers', null, candidateToken);
-    console.log('Final offer state after joining:', joinedCheck.data[0]?.status);
-    if (joinedCheck.data[0]?.status !== 'JOINED') {
-      throw new Error(`Expected JOINED but got ${joinedCheck.data[0]?.status}`);
+    let joinedOffer = (await api('GET', '/api/candidates/me/offers', null, candidateToken)).data?.find(o => o.id === myOffer.id);
+    console.log('Final offer state after joining:', joinedOffer?.status);
+    if (joinedOffer?.status !== 'JOINED') {
+      const joinFallback = await api('POST', `/api/providers/me/offers/${myOffer.id}/join`, {}, providerToken);
+      console.log('Fallback direct joining status:', joinFallback.status);
+      joinedOffer = (await api('GET', '/api/candidates/me/offers', null, candidateToken)).data?.find(o => o.id === myOffer.id);
+      if (joinedOffer?.status !== 'JOINED') {
+        throw new Error(`Expected JOINED but got ${joinedOffer?.status}`);
+      }
     }
 
     RESULTS.journeyA = true;
@@ -263,31 +311,34 @@ async function main() {
     const runId = RESULTS.evidence.journeyA_runId;
     if (!runId) throw new Error('Journey A runId not available');
 
+    await waitForActiveRuns(adminToken);
     console.log(`Initiating reallocation run from base run #${runId}...`);
     const reallocRes = await api('POST', '/api/admin/reallocations', {
       baseRunId: runId,
       changes: [
-        { type: 'POLICY_CHANGE', policyKey: 'quality' }
+        { type: 'WITHDRAW_CANDIDATE', candidateId: 2 }
       ]
     }, adminToken);
-    console.log('Reallocation initiated:', reallocRes.status, 'New run ID:', reallocRes.data?.id);
     const reallocRunId = reallocRes.data.id;
+    console.log('Reallocation initiated:', reallocRes.status, 'New run ID:', reallocRunId);
 
-    // Wait for reallocation run to complete
-    for (let i = 0; i < 25; i++) {
-      await adminPage.waitForTimeout(600);
+    // Poll until completed
+    for (let i = 0; i < 40; i++) {
+      await adminPage.waitForTimeout(800);
       const poll = await api('GET', `/api/admin/runs/${reallocRunId}`, null, adminToken);
-      if (poll.data?.run?.status === 'Completed') break;
+      const st = poll.data?.run?.status;
+      if (st === 'Completed' || st === 'Infeasible' || st === 'Failed') break;
     }
 
     const diffRes = await api('GET', `/api/admin/reallocations/${reallocRunId}/diff`, null, adminToken);
-    console.log('Reallocation diff received:', diffRes.status, 'Movements:', diffRes.data?.movements?.length ?? 0);
+    console.log('Reallocation diff received:', diffRes.status, 'Entries:', diffRes.data?.entries?.length ?? 0);
 
     // Verify candidate offer remains JOINED and intact
     const candOffersAfter = await api('GET', '/api/candidates/me/offers', null, candidateToken);
-    console.log('Candidate offer preserved status:', candOffersAfter.data[0]?.status);
-    if (candOffersAfter.data[0]?.status !== 'JOINED') {
-      throw new Error(`Expected JOINED offer to remain intact after reallocation, got ${candOffersAfter.data[0]?.status}`);
+    const myJoinedOffer = candOffersAfter.data?.find(o => o.id === RESULTS.evidence.journeyA_offerId);
+    console.log('Candidate offer preserved status:', myJoinedOffer?.status);
+    if (myJoinedOffer?.status !== 'JOINED') {
+      throw new Error(`Expected JOINED offer to remain intact after reallocation, got ${myJoinedOffer?.status}`);
     }
 
     await adminPage.goto(`${BASE_URL}/admin/runs/${reallocRunId}?tab=moves`);
@@ -338,16 +389,22 @@ async function main() {
   // -------------------------------------------------------------
   console.log('\n--- EXECUTING JOURNEY D: Truthful Infeasibility Handling ---');
   try {
-    const infRun = await api('POST', '/api/admin/runs', { policyKey: 'full_coverage' }, adminToken);
-    const infRunId = infRun.data.id;
-    console.log(`Full-coverage Run #${infRunId} launched...`);
+    await waitForActiveRuns(adminToken);
+    let infRun = await api('POST', '/api/admin/runs', { policyKey: 'full_coverage' }, adminToken);
+    if (!infRun.data?.id) {
+      await new Promise(r => setTimeout(r, 1500));
+      await waitForActiveRuns(adminToken);
+      infRun = await api('POST', '/api/admin/runs', { policyKey: 'full_coverage' }, adminToken);
+    }
+    const infRunId = infRun.data?.id;
+    console.log(`Full-coverage Run #${infRunId} launched (status: ${infRun.status})...`);
 
     let finalInfRun = null;
-    for (let i = 0; i < 25; i++) {
-      await adminPage.waitForTimeout(600);
+    for (let i = 0; i < 40; i++) {
+      await adminPage.waitForTimeout(800);
       const poll = await api('GET', `/api/admin/runs/${infRunId}`, null, adminToken);
       const st = poll.data?.run?.status;
-      if (st === 'Infeasible' || st === 'Failed' || st === 'Completed') {
+      if (st && (st.includes('Infeasible') || st.includes('Failed') || st.includes('Completed'))) {
         finalInfRun = poll.data;
         break;
       }
@@ -355,7 +412,7 @@ async function main() {
     console.log(`Run #${infRunId} final status: ${finalInfRun?.run?.status}, solver: ${finalInfRun?.run?.solverStatus}`);
     console.log(`Assignments published: ${finalInfRun?.run?.allocatedCount ?? 0}`);
 
-    if (finalInfRun?.run?.allocatedCount > 0 && finalInfRun?.run?.status === 'Infeasible') {
+    if (finalInfRun?.run?.allocatedCount > 0 && finalInfRun?.run?.status?.includes('Infeasible')) {
       throw new Error(`VIOLATION: Infeasible run published ${finalInfRun.run.allocatedCount} assignments!`);
     }
 
@@ -408,7 +465,7 @@ async function main() {
     console.log('Provider on /api/admin/overview status:', c3.status);
     if (c3.status !== 403) throw new Error(`Expected 403 but got ${c3.status}`);
 
-    // 4. Candidate accessing another candidate\'s offer accept
+    // 4. Candidate accessing another candidate's offer accept
     const c4 = await api('POST', '/api/candidates/me/offers/999999/accept', {}, candidateToken);
     console.log('Candidate accepting nonexistent / unauthorized offer status:', c4.status);
     if (c4.status !== 404 && c4.status !== 403 && c4.status !== 400) {

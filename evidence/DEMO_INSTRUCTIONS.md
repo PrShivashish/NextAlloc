@@ -54,3 +54,4 @@
 1. Return to Administrator view, open **Reallocations**.
 2. Show child run diff: demonstrate that a declined or withdrawn candidate's seat is reallocated to the next best candidate while the previously joined candidate's placement remains untouched.
 3. Show infeasible run (#14): demonstrate that an over-constrained allocation reports `Infeasible allocation` truthfully with zero phantom assignments published.
+

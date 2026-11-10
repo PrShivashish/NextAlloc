@@ -359,6 +359,16 @@ public class AdminController {
         return Map.of("runId", id, "offersGenerated", count);
     }
 
+    @PostMapping("/offers/{id}/cancel")
+    @Operation(summary = "Administratively cancel an offer and release candidate and seat capacity.")
+    public in.pragati.service.OfferService.CandidateOfferView cancelOffer(@AuthenticationPrincipal AuthUser me,
+                                                                         @PathVariable Long id,
+                                                                         @RequestBody(required = false) Map<String, String> body) {
+        if (offerService == null) throw in.pragati.common.ApiException.badRequest("Offer service unavailable.");
+        String reason = body != null ? body.getOrDefault("reason", "Cancelled by administrator") : "Cancelled by administrator";
+        return offerService.cancelOffer(me, id, reason);
+    }
+
     @GetMapping("/runs/{id}/comparison")
     @Operation(summary = "Strategy comparison: PRAGATI global vs sequential baseline.")
     public ComparisonService.ComparisonDto comparison(@PathVariable Long id) {

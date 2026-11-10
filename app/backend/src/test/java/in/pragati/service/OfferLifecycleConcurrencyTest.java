@@ -404,4 +404,110 @@ public class OfferLifecycleConcurrencyTest {
         var accB = offerService.acceptOffer(auth(candUserB), offerOpp1CandB.id);
         assertEquals(OfferStatus.ACCEPTED, accB.status());
     }
+
+    @Test
+    @DisplayName("Gate 1 Test 1A: Simultaneous Overlapping Acceptance Race for Same Candidate Across Runs")
+    void testConcurrentSameCandidateDifferentRunsRace() throws Exception {
+        AllocationRun run1 = testRun;
+        AllocationRun run2 = runRepo.findByRunCode("RUN-OFFER-RACE-2").orElseGet(() -> {
+            AllocationRun r = new AllocationRun();
+            r.runCode = "RUN-OFFER-RACE-2";
+            r.number = 1001;
+            r.scenario = ScenarioKey.STANDARD_SHOWCASE;
+            r.snapshotId = 1L;
+            r.policyName = "Test Policy Race";
+            r.policyKey = "balanced";
+            r.policyVersion = "1.0.0";
+            r.weightsJson = "{}";
+            r.status = RunStatus.COMPLETED;
+            return runRepo.save(r);
+        });
+
+        Opportunity oppA = createOpportunity("Concurrent Race Opp A", 5);
+        Opportunity oppB = createOpportunity("Concurrent Race Opp B", 5);
+
+        Offer offerRun1 = createOffer(run1.id, candA.id, oppA.id, OfferStatus.OFFERED);
+        Offer offerRun2 = createOffer(run2.id, candA.id, oppB.id, OfferStatus.OFFERED);
+
+        int threads = 2;
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        CountDownLatch readyLatch = new CountDownLatch(threads);
+        CountDownLatch startLatch = new CountDownLatch(1);
+
+        List<String> outcomes = Collections.synchronizedList(new ArrayList<>());
+
+        Future<?> f1 = pool.submit(() -> {
+            try {
+                readyLatch.countDown();
+                startLatch.await();
+                offerService.acceptOffer(auth(candUserA), offerRun1.id);
+                outcomes.add("OFFER1_SUCCESS");
+            } catch (ApiException e) {
+                outcomes.add("OFFER1_CONFLICT_" + e.getStatus().value());
+            } catch (Exception e) {
+                outcomes.add("OFFER1_ERROR_" + e.getMessage());
+            }
+        });
+
+        Future<?> f2 = pool.submit(() -> {
+            try {
+                readyLatch.countDown();
+                startLatch.await();
+                offerService.acceptOffer(auth(candUserA), offerRun2.id);
+                outcomes.add("OFFER2_SUCCESS");
+            } catch (ApiException e) {
+                outcomes.add("OFFER2_CONFLICT_" + e.getStatus().value());
+            } catch (Exception e) {
+                outcomes.add("OFFER2_ERROR_" + e.getMessage());
+            }
+        });
+
+        assertTrue(readyLatch.await(5, TimeUnit.SECONDS), "Threads must be aligned at starting gate");
+        startLatch.countDown(); // Fire simultaneous transactions!
+
+        f1.get(10, TimeUnit.SECONDS);
+        f2.get(10, TimeUnit.SECONDS);
+        pool.shutdown();
+
+        // Exactly 1 must succeed, exactly 1 must receive HTTP 409 Conflict
+        long successes = outcomes.stream().filter(o -> o.endsWith("_SUCCESS")).count();
+        long conflicts = outcomes.stream().filter(o -> o.contains("_CONFLICT_409")).count();
+
+        assertEquals(1, successes, "Exactly 1 offer acceptance must succeed for the candidate: " + outcomes);
+        assertEquals(1, conflicts, "The overlapping acceptance must receive an explicit 409 Conflict: " + outcomes);
+
+        // Assert database state: exactly 1 active offer exists for candidate A across all runs
+        long activeOffersForCand = offerRepo.countByCandidateIdAndStatusIn(
+                candA.id, List.of(OfferStatus.ACCEPTED, OfferStatus.JOINED));
+        assertEquals(1, activeOffersForCand, "Candidate cannot have more than 1 active placement in the database");
+
+        // Verify both offer rows still exist (no silent deletion)
+        assertTrue(offerRepo.findById(offerRun1.id).isPresent(), "Offer 1 must still exist");
+        assertTrue(offerRepo.findById(offerRun2.id).isPresent(), "Offer 2 must still exist");
+    }
+
+    @Test
+    @DisplayName("Gate 1 Test 1C: Repeated Declines and Re-acceptance Lifecycle Guarantees")
+    void testRepeatedDeclinesAndIdempotency() {
+        Opportunity opp = createOpportunity("Lifecycle Multi-Decline Opp", 1);
+        Offer offer = createOffer(testRun.id, candC.id, opp.id, OfferStatus.OFFERED);
+
+        // Candidate accepts
+        offerService.acceptOffer(auth(candUserC), offer.id);
+        assertEquals(1, offerRepo.countByOpportunityIdAndStatusIn(opp.id, List.of(OfferStatus.ACCEPTED, OfferStatus.JOINED)));
+
+        // Candidate declines once -> releases seat
+        var dec1 = offerService.declineOffer(auth(candUserC), offer.id, "First decline");
+        assertEquals(OfferStatus.DECLINED, dec1.status());
+        assertEquals(0, offerRepo.countByOpportunityIdAndStatusIn(opp.id, List.of(OfferStatus.ACCEPTED, OfferStatus.JOINED)));
+
+        // Candidate declines again -> idempotent, does NOT decrement or corrupt capacity
+        var dec2 = offerService.declineOffer(auth(candUserC), offer.id, "Second decline");
+        assertEquals(OfferStatus.DECLINED, dec2.status());
+        assertEquals(0, offerRepo.countByOpportunityIdAndStatusIn(opp.id, List.of(OfferStatus.ACCEPTED, OfferStatus.JOINED)));
+
+        // Candidate C can no longer accept this declined offer
+        assertThrows(ApiException.class, () ->
+                offerService.acceptOffer(auth(candUserC), offer.id));
+    }
 }

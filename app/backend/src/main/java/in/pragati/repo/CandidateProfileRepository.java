@@ -17,6 +17,10 @@ public interface CandidateProfileRepository extends JpaRepository<CandidateProfi
     @Query("SELECT p FROM CandidateProfile p WHERE p.userId = :userId")
     Optional<CandidateProfile> findByUserIdForUpdate(@Param("userId") Long userId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM CandidateProfile p WHERE p.id = :id")
+    Optional<CandidateProfile> findByIdForUpdate(@Param("id") Long id);
+
     List<CandidateProfile> findAllByCandidateState(CandidateState state);
     long countByCandidateState(CandidateState state);
 }
