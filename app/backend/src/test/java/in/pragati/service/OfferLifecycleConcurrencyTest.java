@@ -1,0 +1,346 @@
+package in.pragati.service;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
+import org.flywaydb.core.Flyway;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import in.pragati.common.ApiException;
+import in.pragati.domain.AllocationRun;
+import in.pragati.domain.CandidateProfile;
+import in.pragati.domain.Offer;
+import in.pragati.domain.Opportunity;
+import in.pragati.domain.Provider;
+import in.pragati.domain.User;
+import in.pragati.domain.enums.CandidateState;
+import in.pragati.domain.enums.CandidateStatus;
+import in.pragati.domain.enums.OfferStatus;
+import in.pragati.domain.enums.OppStatus;
+import in.pragati.domain.enums.Qualification;
+import in.pragati.domain.enums.Role;
+import in.pragati.domain.enums.RunStatus;
+import in.pragati.domain.enums.ScenarioKey;
+import in.pragati.domain.enums.Sector;
+import in.pragati.repo.AllocationRunRepository;
+import in.pragati.repo.CandidateProfileRepository;
+import in.pragati.repo.OfferRepository;
+import in.pragati.repo.OpportunityRepository;
+import in.pragati.repo.ProviderRepository;
+import in.pragati.repo.UserRepository;
+import in.pragati.security.AuthUser;
+
+@SpringBootTest
+public class OfferLifecycleConcurrencyTest {
+
+    @Autowired
+    private OfferService offerService;
+
+    @Autowired
+    private OfferRepository offerRepo;
+
+    @Autowired
+    private OpportunityRepository oppRepo;
+
+    @Autowired
+    private CandidateProfileRepository profileRepo;
+
+    @Autowired
+    private UserRepository userRepo;
+
+    @Autowired
+    private ProviderRepository providerRepo;
+
+    @Autowired
+    private AllocationRunRepository runRepo;
+
+    @Autowired
+    private Flyway flyway;
+
+    private User candUserA;
+    private User candUserB;
+    private User candUserC;
+    private User provUser;
+    private User adminUser;
+
+    private CandidateProfile candA;
+    private CandidateProfile candB;
+    private CandidateProfile candC;
+    private Provider provider;
+    private AllocationRun testRun;
+
+    @BeforeEach
+    void setUp() {
+        offerRepo.deleteAll();
+
+        // Admin User
+        adminUser = userRepo.findByEmail("admin-offer-test@pragati.local").orElseGet(() -> {
+            User u = new User();
+            u.email = "admin-offer-test@pragati.local";
+            u.name = "Admin Offer Tester";
+            u.passwordHash = "hashed";
+            u.role = Role.ADMIN;
+            return userRepo.save(u);
+        });
+
+        // Provider User & Entity
+        provUser = userRepo.findByEmail("provider-offer-test@pragati.local").orElseGet(() -> {
+            User u = new User();
+            u.email = "provider-offer-test@pragati.local";
+            u.name = "Provider Lead";
+            u.passwordHash = "hashed";
+            u.role = Role.PROVIDER;
+            return userRepo.save(u);
+        });
+
+        provider = providerRepo.findByUserId(provUser.id).orElseGet(() -> {
+            Provider p = new Provider();
+            p.userId = provUser.id;
+            p.orgName = "Apex Technologies";
+            p.state = "Karnataka";
+            return providerRepo.save(p);
+        });
+
+        // Candidates A, B, C
+        candUserA = getOrCreateUser("cand-a-offer@pragati.local", "Candidate A", Role.CANDIDATE);
+        candA = getOrCreateProfile(candUserA);
+
+        candUserB = getOrCreateUser("cand-b-offer@pragati.local", "Candidate B", Role.CANDIDATE);
+        candB = getOrCreateProfile(candUserB);
+
+        candUserC = getOrCreateUser("cand-c-offer@pragati.local", "Candidate C", Role.CANDIDATE);
+        candC = getOrCreateProfile(candUserC);
+
+        // Test Run
+        testRun = runRepo.findByRunCode("RUN-OFFER-TEST").orElseGet(() -> {
+            AllocationRun r = new AllocationRun();
+            r.runCode = "RUN-OFFER-TEST";
+            r.number = 999;
+            r.scenario = ScenarioKey.STANDARD_SHOWCASE;
+            r.snapshotId = 1L;
+            r.policyName = "Test Policy";
+            r.policyKey = "balanced";
+            r.policyVersion = "1.0.0";
+            r.weightsJson = "{}";
+            r.status = RunStatus.COMPLETED;
+            return runRepo.save(r);
+        });
+    }
+
+    private User getOrCreateUser(String email, String name, Role role) {
+        return userRepo.findByEmail(email).orElseGet(() -> {
+            User u = new User();
+            u.email = email;
+            u.name = name;
+            u.passwordHash = "hashed";
+            u.role = role;
+            return userRepo.save(u);
+        });
+    }
+
+    private CandidateProfile getOrCreateProfile(User u) {
+        return profileRepo.findByUserId(u.id).orElseGet(() -> {
+            CandidateProfile p = new CandidateProfile();
+            p.userId = u.id;
+            p.fullName = u.name;
+            p.qualification = Qualification.BACHELORS;
+            p.state = "Karnataka";
+            p.candidateState = CandidateState.ACTIVE;
+            p.candidateStatus = CandidateStatus.STUDENT;
+            return profileRepo.save(p);
+        });
+    }
+
+    private Opportunity createOpportunity(String title, int capacity) {
+        Opportunity o = new Opportunity();
+        o.providerId = provider.id;
+        o.title = title;
+        o.sector = Sector.SOFTWARE_IT;
+        o.state = "Karnataka";
+        o.city = "Bengaluru";
+        o.capacity = capacity;
+        o.durationMonths = 6;
+        o.minQualification = Qualification.BACHELORS;
+        o.status = OppStatus.ACTIVE;
+        return oppRepo.save(o);
+    }
+
+    private Offer createOffer(Long runId, Long candId, Long oppId, OfferStatus status) {
+        Offer o = new Offer();
+        o.runId = runId;
+        o.candidateId = candId;
+        o.opportunityId = oppId;
+        o.status = status;
+        o.offeredAt = Instant.now();
+        return offerRepo.save(o);
+    }
+
+    private AuthUser auth(User u) {
+        return new AuthUser(u.id, u.email, u.name, u.role.name());
+    }
+
+    @Test
+    @DisplayName("V7 migration is successfully applied with offers table")
+    void testFlywayV7MigrationApplied() {
+        var applied = flyway.info().applied();
+        assertTrue(applied.length >= 7, "Flyway schema history must have at least 7 migrations");
+        var v7 = java.util.Arrays.stream(applied)
+                .filter(m -> m.getVersion() != null && m.getVersion().getVersion().equals("7"))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(v7, "V7 migration must be present in applied migrations");
+        assertEquals("offer lifecycle", v7.getDescription());
+    }
+
+    @Test
+    @DisplayName("Offer lifecycle happy path: OFFERED -> ACCEPTED -> JOINED")
+    void testOfferLifecycleHappyPath() {
+        Opportunity opp = createOpportunity("Full-Stack Dev Intern", 2);
+        Offer offer = createOffer(testRun.id, candA.id, opp.id, OfferStatus.OFFERED);
+
+        // Candidate views offers
+        var myOffers = offerService.myOffers(auth(candUserA));
+        assertEquals(1, myOffers.size());
+        assertEquals(OfferStatus.OFFERED, myOffers.get(0).status());
+        assertEquals("Full-Stack Dev Intern", myOffers.get(0).opportunityTitle());
+
+        // Candidate accepts
+        var accepted = offerService.acceptOffer(auth(candUserA), offer.id);
+        assertEquals(OfferStatus.ACCEPTED, accepted.status());
+        assertNotNull(accepted.respondedAt());
+
+        // Provider marks joined
+        var joined = offerService.markJoined(auth(provUser), offer.id);
+        assertEquals(OfferStatus.JOINED, joined.status());
+        assertNotNull(joined.joinedAt());
+
+        // Candidate cannot decline after joining
+        assertThrows(ApiException.class, () ->
+                offerService.declineOffer(auth(candUserA), offer.id, "Attempted late decline"));
+    }
+
+    @Test
+    @DisplayName("Offer decline releases seat capacity with audit reason")
+    void testOfferDeclineReleasesCapacity() {
+        Opportunity opp = createOpportunity("AI Engineer Intern", 1);
+        Offer offer = createOffer(testRun.id, candA.id, opp.id, OfferStatus.OFFERED);
+
+        var declined = offerService.declineOffer(auth(candUserA), offer.id, "Accepted another offer");
+        assertEquals(OfferStatus.DECLINED, declined.status());
+        assertEquals("Accepted another offer", declined.declineReason());
+        assertNotNull(declined.respondedAt());
+
+        // Opportunity active seats must be 0
+        long activeSeats = offerRepo.countByOpportunityIdAndStatusIn(
+                opp.id, List.of(OfferStatus.ACCEPTED, OfferStatus.JOINED));
+        assertEquals(0, activeSeats);
+    }
+
+    @Test
+    @DisplayName("Accept and decline operations are strictly idempotent")
+    void testIdempotencyOfAcceptAndDecline() {
+        Opportunity opp = createOpportunity("Data Science Intern", 2);
+        Offer offer = createOffer(testRun.id, candA.id, opp.id, OfferStatus.OFFERED);
+
+        var acc1 = offerService.acceptOffer(auth(candUserA), offer.id);
+        var acc2 = offerService.acceptOffer(auth(candUserA), offer.id);
+        assertEquals(OfferStatus.ACCEPTED, acc1.status());
+        assertEquals(OfferStatus.ACCEPTED, acc2.status());
+
+        // Re-declining
+        var dec1 = offerService.declineOffer(auth(candUserA), offer.id, "Declining after initial accept");
+        var dec2 = offerService.declineOffer(auth(candUserA), offer.id, "Declining again");
+        assertEquals(OfferStatus.DECLINED, dec1.status());
+        assertEquals(OfferStatus.DECLINED, dec2.status());
+    }
+
+    @Test
+    @DisplayName("Security: Candidate cannot accept or decline another candidate's offer")
+    void testForbiddenWhenCandidateRespondsToOthersOffer() {
+        Opportunity opp = createOpportunity("Security Analyst Intern", 1);
+        Offer offerA = createOffer(testRun.id, candA.id, opp.id, OfferStatus.OFFERED);
+
+        // Candidate B attempts to accept Candidate A's offer
+        ApiException ex = assertThrows(ApiException.class, () ->
+                offerService.acceptOffer(auth(candUserB), offerA.id));
+        assertEquals(403, ex.getStatus().value());
+
+        // Candidate B attempts to decline Candidate A's offer
+        ex = assertThrows(ApiException.class, () ->
+                offerService.declineOffer(auth(candUserB), offerA.id, "Malicious decline"));
+        assertEquals(403, ex.getStatus().value());
+    }
+
+    @Test
+    @DisplayName("Seat Contention Concurrency Guard: Two candidates compete for last seat (capacity=1), zero oversubscription")
+    void testConcurrentSeatContentionPessimisticGuard() throws Exception {
+        Opportunity opp = createOpportunity("Single Seat Hotshot Intern", 1);
+        Offer offerA = createOffer(testRun.id, candA.id, opp.id, OfferStatus.OFFERED);
+        Offer offerB = createOffer(testRun.id, candB.id, opp.id, OfferStatus.OFFERED);
+
+        int threads = 2;
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        CountDownLatch readyLatch = new CountDownLatch(threads);
+        CountDownLatch startLatch = new CountDownLatch(1);
+
+        List<String> results = Collections.synchronizedList(new ArrayList<>());
+
+        Future<?> f1 = pool.submit(() -> {
+            try {
+                readyLatch.countDown();
+                startLatch.await();
+                offerService.acceptOffer(auth(candUserA), offerA.id);
+                results.add("A_SUCCESS");
+            } catch (ApiException e) {
+                results.add("A_CONFLICT_" + e.getStatus().value());
+            } catch (Exception e) {
+                results.add("A_ERROR_" + e.getMessage());
+            }
+        });
+
+        Future<?> f2 = pool.submit(() -> {
+            try {
+                readyLatch.countDown();
+                startLatch.await();
+                offerService.acceptOffer(auth(candUserB), offerB.id);
+                results.add("B_SUCCESS");
+            } catch (ApiException e) {
+                results.add("B_CONFLICT_" + e.getStatus().value());
+            } catch (Exception e) {
+                results.add("B_ERROR_" + e.getMessage());
+            }
+        });
+
+        assertTrue(readyLatch.await(5, TimeUnit.SECONDS), "All threads must be ready");
+        startLatch.countDown(); // Fire concurrently!
+
+        f1.get(10, TimeUnit.SECONDS);
+        f2.get(10, TimeUnit.SECONDS);
+        pool.shutdown();
+
+        // Exactly one must succeed with SUCCESS, and the other must fail with HTTP 409 CONFLICT
+        long successCount = results.stream().filter(r -> r.endsWith("_SUCCESS")).count();
+        long conflictCount = results.stream().filter(r -> r.contains("_CONFLICT_409")).count();
+
+        assertEquals(1, successCount, "Exactly 1 candidate must successfully secure the single available seat");
+        assertEquals(1, conflictCount, "The second candidate must receive an explicit 409 Conflict rejection");
+
+        // Verify database state: exactly 1 ACCEPTED offer and 1 OFFERED offer
+        long activeInDb = offerRepo.countByOpportunityIdAndStatusIn(
+                opp.id, List.of(OfferStatus.ACCEPTED, OfferStatus.JOINED));
+        assertEquals(1, activeInDb, "Active seats in database must strictly not exceed opportunity capacity (1)");
+    }
+}

@@ -39,13 +39,23 @@ public class CandidateController {
     private final CandidateService candidateService;
     private final EvidenceService evidenceService;
     private final CandidateAcademicService academicService;
+    private final in.pragati.service.OfferService offerService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public CandidateController(CandidateService candidateService,
+                               EvidenceService evidenceService,
+                               CandidateAcademicService academicService,
+                               @org.springframework.beans.factory.annotation.Autowired(required = false) in.pragati.service.OfferService offerService) {
+        this.candidateService = candidateService;
+        this.evidenceService = evidenceService;
+        this.academicService = academicService;
+        this.offerService = offerService;
+    }
 
     public CandidateController(CandidateService candidateService,
                                EvidenceService evidenceService,
                                CandidateAcademicService academicService) {
-        this.candidateService = candidateService;
-        this.evidenceService = evidenceService;
-        this.academicService = academicService;
+        this(candidateService, evidenceService, academicService, null);
     }
 
     @GetMapping("/me/profile")
@@ -276,5 +286,32 @@ public class CandidateController {
             actions.add("You are ready — watch for the next allocation run");
         }
         return Map.of("allocation", alloc, "readiness", ready, "nextActions", actions);
+    }
+
+    @GetMapping("/me/offers")
+    @Operation(summary = "List all offers received by the current candidate.")
+    public ResponseEntity<List<in.pragati.service.OfferService.CandidateOfferView>> getMyOffers(@AuthenticationPrincipal AuthUser me) {
+        if (offerService == null) return ResponseEntity.ok(List.of());
+        return ResponseEntity.ok(offerService.myOffers(me));
+    }
+
+    @PostMapping("/me/offers/{id}/accept")
+    @Operation(summary = "Accept an offer received by the candidate.")
+    public ResponseEntity<in.pragati.service.OfferService.CandidateOfferView> acceptOffer(
+            @AuthenticationPrincipal AuthUser me,
+            @PathVariable Long id) {
+        if (offerService == null) throw in.pragati.common.ApiException.badRequest("Offer service unavailable.");
+        return ResponseEntity.ok(offerService.acceptOffer(me, id));
+    }
+
+    @PostMapping("/me/offers/{id}/decline")
+    @Operation(summary = "Decline an offer received by the candidate, releasing the seat.")
+    public ResponseEntity<in.pragati.service.OfferService.CandidateOfferView> declineOffer(
+            @AuthenticationPrincipal AuthUser me,
+            @PathVariable Long id,
+            @RequestBody(required = false) in.pragati.service.OfferService.DeclineRequest req) {
+        if (offerService == null) throw in.pragati.common.ApiException.badRequest("Offer service unavailable.");
+        String reason = req != null ? req.reason() : null;
+        return ResponseEntity.ok(offerService.declineOffer(me, id, reason));
     }
 }

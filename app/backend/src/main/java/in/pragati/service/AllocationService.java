@@ -80,6 +80,8 @@ public class AllocationService {
     private final CandidateRelatedSkillRepository candidateRelatedSkills;
     private final ObjectMapper json;
     private final AppProperties props;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private OfferService offerService;
 
     private final ExecutorService executor = Executors.newFixedThreadPool(2, r -> {
         Thread t = new Thread(r, "pragati-allocation");
@@ -651,6 +653,13 @@ public class AllocationService {
         run.totalRuntimeMs = System.currentTimeMillis() - t0;
         run.stageTimingsJson = st.json();
         runs.save(run);
+        if (run.status == RunStatus.COMPLETED && offerService != null) {
+            try {
+                offerService.generateOffersForRun(run);
+            } catch (Exception e) {
+                log.warn("Automatic offer generation notice for run {}: {}", run.runCode, e.getMessage());
+            }
+        }
     }
 
     private void persistAndReconcileSnapshots(Long runId, List<CandidateProfile> candidates,

@@ -135,7 +135,34 @@ public class AdminController {
     private final SimulationRunRepository simulations;
     private final EvidenceService evidenceService;
     private final CandidateAcademicVerificationService academicVerificationService;
+    private final in.pragati.service.OfferService offerService;
     private final ObjectMapper json;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public AdminController(OverviewService overview, ScenarioService scenarios,
+                           AllocationService allocation, ComparisonService comparison,
+                           PolicyService policy, ReallocationService reallocation,
+                           DataQualityService dataQuality, AuditService audit, JudgeService judge,
+                           TechnicalService technical, PdfReportService report,
+                           DatasetSnapshotRepository snapshots, AllocationRunRepository runs,
+                           AssignmentRepository assignments, GroupMetricRepository groupMetrics,
+                           GeoMetricRepository geoMetrics, ConflictMetricRepository conflicts,
+                           OpportunityRepository opportunities, AuditEventRepository auditEvents,
+                           SimulationRunRepository simulations, EvidenceService evidenceService,
+                           CandidateAcademicVerificationService academicVerificationService,
+                           @org.springframework.beans.factory.annotation.Autowired(required = false) in.pragati.service.OfferService offerService,
+                           ObjectMapper json) {
+        this.overview = overview; this.scenarios = scenarios; this.allocation = allocation;
+        this.comparison = comparison; this.policy = policy; this.reallocation = reallocation;
+        this.dataQuality = dataQuality; this.audit = audit; this.judge = judge;
+        this.technical = technical; this.report = report; this.snapshots = snapshots;
+        this.runs = runs; this.assignments = assignments; this.groupMetrics = groupMetrics;
+        this.geoMetrics = geoMetrics; this.conflicts = conflicts; this.opportunities = opportunities;
+        this.auditEvents = auditEvents; this.simulations = simulations; this.evidenceService = evidenceService;
+        this.academicVerificationService = academicVerificationService;
+        this.offerService = offerService;
+        this.json = json;
+    }
 
     public AdminController(OverviewService overview, ScenarioService scenarios,
                            AllocationService allocation, ComparisonService comparison,
@@ -149,15 +176,10 @@ public class AdminController {
                            SimulationRunRepository simulations, EvidenceService evidenceService,
                            CandidateAcademicVerificationService academicVerificationService,
                            ObjectMapper json) {
-        this.overview = overview; this.scenarios = scenarios; this.allocation = allocation;
-        this.comparison = comparison; this.policy = policy; this.reallocation = reallocation;
-        this.dataQuality = dataQuality; this.audit = audit; this.judge = judge;
-        this.technical = technical; this.report = report; this.snapshots = snapshots;
-        this.runs = runs; this.assignments = assignments; this.groupMetrics = groupMetrics;
-        this.geoMetrics = geoMetrics; this.conflicts = conflicts; this.opportunities = opportunities;
-        this.auditEvents = auditEvents; this.simulations = simulations; this.evidenceService = evidenceService;
-        this.academicVerificationService = academicVerificationService;
-        this.json = json;
+        this(overview, scenarios, allocation, comparison, policy, reallocation,
+                dataQuality, audit, judge, technical, report, snapshots, runs,
+                assignments, groupMetrics, geoMetrics, conflicts, opportunities,
+                auditEvents, simulations, evidenceService, academicVerificationService, null, json);
     }
 
     // ---- Command center ----
@@ -318,6 +340,23 @@ public class AdminController {
         } catch (Exception e) {
             return List.of();
         }
+    }
+
+    @GetMapping("/runs/{id}/offers")
+    @Operation(summary = "All offers generated for an allocation run.")
+    public List<in.pragati.service.OfferService.ProviderOfferView> runOffers(@PathVariable Long id) {
+        if (offerService == null) return List.of();
+        return offerService.getRunOffers(id);
+    }
+
+    @PostMapping("/runs/{id}/generate-offers")
+    @Operation(summary = "Generate durable offers for an allocation run.")
+    public Map<String, Object> generateOffers(@PathVariable Long id) {
+        if (offerService == null) throw in.pragati.common.ApiException.badRequest("Offer service unavailable.");
+        AllocationRun run = runs.findById(id)
+                .orElseThrow(() -> in.pragati.common.ApiException.notFound("Run not found: " + id));
+        int count = offerService.generateOffersForRun(run);
+        return Map.of("runId", id, "offersGenerated", count);
     }
 
     @GetMapping("/runs/{id}/comparison")

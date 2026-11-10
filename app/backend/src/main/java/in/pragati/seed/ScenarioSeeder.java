@@ -39,6 +39,7 @@ public class ScenarioSeeder {
     private final AllocationRunRepository runs;
     private final ResumeFileRepository resumes;
     private final CandidateRelatedSkillRepository relatedSkills;
+    private final in.pragati.repo.OfferRepository offers;
 
     /** The demo candidate profile is created at most once per scenario (unique user_id). */
     private boolean demoAssigned = false;
@@ -53,7 +54,8 @@ public class ScenarioSeeder {
                           in.pragati.repo.GeoMetricRepository geoMetrics,
                           in.pragati.repo.ConflictMetricRepository conflictMetrics,
                           SimulationRunRepository simulations, AllocationRunRepository runs,
-                          ResumeFileRepository resumes, CandidateRelatedSkillRepository relatedSkills) {
+                          ResumeFileRepository resumes, CandidateRelatedSkillRepository relatedSkills,
+                          @org.springframework.beans.factory.annotation.Autowired(required = false) in.pragati.repo.OfferRepository offers) {
         this.users = users; this.profiles = profiles; this.skills = skills;
         this.interests = interests; this.preferences = preferences; this.providers = providers;
         this.opportunities = opportunities; this.oppSkills = oppSkills; this.snapshots = snapshots;
@@ -61,6 +63,21 @@ public class ScenarioSeeder {
         this.geoMetrics = geoMetrics; this.conflictMetrics = conflictMetrics;
         this.simulations = simulations; this.runs = runs; this.resumes = resumes;
         this.relatedSkills = relatedSkills;
+        this.offers = offers;
+    }
+
+    public ScenarioSeeder(UserRepository users, CandidateProfileRepository profiles,
+                          CandidateSkillRepository skills, CandidateInterestRepository interests,
+                          CandidatePreferenceRepository preferences, ProviderRepository providers,
+                          OpportunityRepository opportunities, OpportunitySkillRepository oppSkills,
+                          DatasetSnapshotRepository snapshots, AssignmentRepository assignments,
+                          in.pragati.repo.GroupMetricRepository groupMetrics,
+                          in.pragati.repo.GeoMetricRepository geoMetrics,
+                          in.pragati.repo.ConflictMetricRepository conflictMetrics,
+                          SimulationRunRepository simulations, AllocationRunRepository runs,
+                          ResumeFileRepository resumes, CandidateRelatedSkillRepository relatedSkills) {
+        this(users, profiles, skills, interests, preferences, providers, opportunities, oppSkills,
+                snapshots, assignments, groupMetrics, geoMetrics, conflictMetrics, simulations, runs, resumes, relatedSkills, null);
     }
 
     public ScenarioSeeder(UserRepository users, CandidateProfileRepository profiles,
@@ -74,7 +91,7 @@ public class ScenarioSeeder {
                           SimulationRunRepository simulations, AllocationRunRepository runs,
                           ResumeFileRepository resumes) {
         this(users, profiles, skills, interests, preferences, providers, opportunities, oppSkills,
-                snapshots, assignments, groupMetrics, geoMetrics, conflictMetrics, simulations, runs, resumes, null);
+                snapshots, assignments, groupMetrics, geoMetrics, conflictMetrics, simulations, runs, resumes, null, null);
     }
 
     // ------------------------------------------------------------------
@@ -200,6 +217,7 @@ public class ScenarioSeeder {
     /** Deletes all scenario data (keeps demo users, providers and snapshots) and reseeds. */
     @Transactional
     public void reset() {
+        if (offers != null) offers.deleteAll();
         assignments.deleteAll();
         groupMetrics.deleteAll();
         geoMetrics.deleteAll();

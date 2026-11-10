@@ -22,9 +22,17 @@ public class ProviderController {
     public record StatusInput(String status) { }
 
     private final ProviderService providerService;
+    private final in.pragati.service.OfferService offerService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ProviderController(ProviderService providerService,
+                              @org.springframework.beans.factory.annotation.Autowired(required = false) in.pragati.service.OfferService offerService) {
+        this.providerService = providerService;
+        this.offerService = offerService;
+    }
 
     public ProviderController(ProviderService providerService) {
-        this.providerService = providerService;
+        this(providerService, null);
     }
 
     @GetMapping("/me")
@@ -80,5 +88,23 @@ public class ProviderController {
     @Operation(summary = "Allocation impact of my opportunities in the latest run.")
     public List<ProviderService.ImpactEntry> impact(@AuthenticationPrincipal AuthUser me) {
         return providerService.impact(me);
+    }
+
+    @GetMapping("/me/opportunities/{id}/offers")
+    @Operation(summary = "Get all candidate offers for one of my opportunities.")
+    public List<in.pragati.service.OfferService.ProviderOfferView> opportunityOffers(
+            @AuthenticationPrincipal AuthUser me,
+            @PathVariable Long id) {
+        if (offerService == null) return List.of();
+        return offerService.getOpportunityOffers(me, id);
+    }
+
+    @PostMapping("/me/offers/{id}/join")
+    @Operation(summary = "Mark an accepted candidate as JOINED.")
+    public in.pragati.service.OfferService.CandidateOfferView markJoined(
+            @AuthenticationPrincipal AuthUser me,
+            @PathVariable Long id) {
+        if (offerService == null) throw in.pragati.common.ApiException.badRequest("Offer service unavailable.");
+        return offerService.markJoined(me, id);
     }
 }
