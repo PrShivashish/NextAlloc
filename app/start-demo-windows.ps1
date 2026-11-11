@@ -92,16 +92,18 @@ else { Write-Host "  [!] AI service did not answer yet — allocation will run i
        Write-Host "      fallback mode and resume extraction stays unavailable." -ForegroundColor Yellow }
 
 # Backend: prefer the prebuilt jar (fastest, most reproducible); build only if missing.
-$jar = Join-Path $root "backend\target\pragati-backend.jar"
+$jar = Join-Path $root "backend\target\nextalloc-backend.jar"
+if (-not (Test-Path $jar)) { $jar = Join-Path $root "backend\target\pragati-backend.jar" }
 Push-Location (Join-Path $root "backend")
 if (Test-Path $jar) {
   Write-Host "  [ok] backend jar found — starting it directly" -ForegroundColor Green
-  & java -jar "target\pragati-backend.jar"
+  & java -jar $jar
 } elseif (Test-Cmd "mvn") {
   Write-Host "  ... no jar yet — building the backend with Maven (first run only)..." -ForegroundColor DarkGray
   & mvn -q -B package -DskipTests
   if ($LASTEXITCODE -ne 0) { throw "Maven build failed — see the log above." }
-  & java -jar "target\pragati-backend.jar"
+  $builtJar = if (Test-Path "target\nextalloc-backend.jar") { "target\nextalloc-backend.jar" } else { "target\pragati-backend.jar" }
+  & java -jar $builtJar
 } else {
   Write-Host "  [!] No backend jar and Maven is not installed." -ForegroundColor Yellow
   Write-Host "      Install Maven (winget install Apache.Maven) and re-run." -ForegroundColor Yellow

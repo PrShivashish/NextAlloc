@@ -129,11 +129,11 @@ Open [http://localhost:5173](http://localhost:5173). API requests are automatica
 
 NextAlloc is designed with production-grade security defaults:
 
-- **JWT Authentication:** Stateful token validation with configurable signing secret (`PRAGATI_JWT_SECRET`) and 12-hour expiration window.
-- **Login Rate Limiting:** In-memory bucket token rate limiter (`PRAGATI_RATE_LIMIT_LOGIN_PER_MINUTE`, default `8` req/min per IP) to prevent brute-force attacks.
+- **JWT Authentication:** Stateful token validation with configurable signing secret (`NEXTALLOC_JWT_SECRET`, legacy fallback `PRAGATI_JWT_SECRET`) and 12-hour expiration window.
+- **Login Rate Limiting:** In-memory bucket token rate limiter (`NEXTALLOC_RATE_LIMIT_LOGIN_PER_MINUTE`, default `8` req/min per IP) to prevent brute-force attacks.
 - **Role-Based Access Control (RBAC):** Strict Spring Security URL boundaries (`/api/admin/**` restricted to `ROLE_ADMIN`, `/api/providers/**` to `ROLE_PROVIDER`, `/api/candidates/**` to `ROLE_CANDIDATE`).
 - **Pessimistic Concurrency Control:** Row-level locks (`SELECT ... FOR UPDATE`) on opportunity seat capacities and candidate active placement counters prevent oversubscription even under high-concurrency race conditions.
-- **CORS Hardening:** Configurable allowed origins (`PRAGATI_CORS_ORIGINS`).
+- **CORS Hardening:** Configurable allowed origins (`NEXTALLOC_CORS_ORIGINS`, legacy fallback `PRAGATI_CORS_ORIGINS`).
 - **Safe Information Disclosure:** Production error stack traces and internal class names are hidden (`server.error.include-stacktrace: never`).
 - **Database Portability:** Runs zero-configuration H2 in-memory storage for demonstrations and native PostgreSQL 16 via environment variables (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`).
 

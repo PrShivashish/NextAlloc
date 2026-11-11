@@ -24,7 +24,7 @@ def req(method, path, body=None, tok=None, timeout=180):
             return e.code, {}
 
 def main():
-    _, login = req("POST", "/api/auth/login", {"email": "admin@pragati.gov.in", "password": "Admin@123"})
+    _, login = req("POST", "/api/auth/login", {"email": "admin@nextalloc.in", "password": "Admin@123"})
     tok = login["token"]
     out = {}
 

@@ -45,9 +45,9 @@ def multipart_field(name, filename, content_bytes, ctype, field="file"):
             f"Content-Type: {ctype}\r\n\r\n").encode() + content_bytes + f"\r\n--{boundary}--\r\n".encode()
     return body, f"multipart/form-data; boundary={boundary}"
 
-admin = login("admin@pragati.gov.in", "Admin@123")
-prov  = login("provider@pragati.gov.in", "Provider@123")
-cand  = login("candidate@pragati.gov.in", "Candidate@123")
+admin = login("admin@nextalloc.in", "Admin@123")
+prov  = login("provider@nextalloc.in", "Provider@123")
+cand  = login("candidate@nextalloc.in", "Candidate@123")
 check("login all three roles", True)
 
 # ---------- auth / security ----------
