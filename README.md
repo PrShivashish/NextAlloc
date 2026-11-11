@@ -125,20 +125,6 @@ Open [http://localhost:5173](http://localhost:5173). API requests are automatica
 
 ---
 
-## 🔑 Pre-Seeded Demonstration Credentials
-
-NextAlloc includes synthetic demo accounts pre-configured for evaluation:
-
-| Role | Email | Password | Representative Entity | Key Features Accessible |
-| :--- | :--- | :--- | :--- | :--- |
-| **Administrator** | `admin@nextalloc.in` | `Admin@123` | **Shivashish Prusty** | Command center, global solver runs, NOC & academic verification queue, What-If policy lab, audit trail |
-| **Candidate** | `candidate@nextalloc.in` | `Candidate@123` | **Aarav Sharma** | Profile readiness, skill taxonomy tagging, institutional NOC upload, actionable offer acceptance |
-| **Organisation** | `provider@nextalloc.in` | `Provider@123` | **Dr. R. K. Malhotra** (*National Technology Institute*) | Opportunity creation, capacity management, candidate selection, joining confirmation |
-
-*(Note: Legacy demonstration emails `@pragati.gov.in` are seamlessly accepted as aliases).*
-
----
-
 ## 🛡️ Production & Security Configuration
 
 NextAlloc is designed with production-grade security defaults:
