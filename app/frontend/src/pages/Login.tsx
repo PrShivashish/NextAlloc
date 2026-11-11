@@ -40,7 +40,7 @@ export default function Login() {
         <div className="pointer-events-none absolute -bottom-40 -left-24 h-[380px] w-[380px] rounded-full bg-emerald-400/[0.06] blur-3xl" />
         <div className="relative z-10">
           {/* Brand mark, top-left, on the dark surface directly — no white plate. */}
-          <LogoMark height={44} textSize={14} />
+          <LogoMark height={44} />
           <div className="mt-10">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3.5 py-1.5 text-[11.5px] font-semibold text-saffron-300 ring-1 ring-white/10">
               <Sparkles className="h-3.5 w-3.5" /> Smart India Hackathon 2026 · SIH25033

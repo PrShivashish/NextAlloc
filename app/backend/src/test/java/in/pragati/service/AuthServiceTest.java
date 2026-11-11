@@ -38,19 +38,19 @@ class AuthServiceTest {
         User u = new User();
         u.id = 1L;
         u.email = "admin@pragati.gov.in";
-        u.name = "Asha Iyer";
+        u.name = "Shivashish Prusty";
         u.role = Role.ADMIN;
         u.status = UserStatus.ACTIVE;
         u.passwordHash = "hash123";
 
         when(users.findByEmail("admin@pragati.gov.in")).thenReturn(Optional.of(u));
         when(encoder.matches("Admin@123", "hash123")).thenReturn(true);
-        when(jwt.issue(1L, "admin@pragati.gov.in", "Asha Iyer", "ADMIN")).thenReturn("fake-jwt-token");
+        when(jwt.issue(1L, "admin@pragati.gov.in", "Shivashish Prusty", "ADMIN")).thenReturn("fake-jwt-token");
 
         AuthService.LoginResult res = auth.login("admin@pragati.gov.in", "Admin@123");
         assertNotNull(res);
         assertEquals("fake-jwt-token", res.token());
-        assertEquals("Asha Iyer", res.user().get("name"));
+        assertEquals("Shivashish Prusty", res.user().get("name"));
     }
 
     @Test
@@ -58,7 +58,7 @@ class AuthServiceTest {
         User u = new User();
         u.id = 1L;
         u.email = "admin@pragati.gov.in";
-        u.name = "Asha Iyer";
+        u.name = "Shivashish Prusty";
         u.role = Role.ADMIN;
         u.status = UserStatus.ACTIVE;
         u.passwordHash = "hash123";
@@ -66,12 +66,12 @@ class AuthServiceTest {
         when(users.findByEmail("admin@nextalloc.in")).thenReturn(Optional.empty());
         when(users.findByEmail("admin@pragati.gov.in")).thenReturn(Optional.of(u));
         when(encoder.matches("Admin@123", "hash123")).thenReturn(true);
-        when(jwt.issue(1L, "admin@pragati.gov.in", "Asha Iyer", "ADMIN")).thenReturn("fake-jwt-token");
+        when(jwt.issue(1L, "admin@pragati.gov.in", "Shivashish Prusty", "ADMIN")).thenReturn("fake-jwt-token");
 
         AuthService.LoginResult res = auth.login("admin@nextalloc.in", "Admin@123");
         assertNotNull(res);
         assertEquals("fake-jwt-token", res.token());
-        assertEquals("Asha Iyer", res.user().get("name"));
+        assertEquals("Shivashish Prusty", res.user().get("name"));
     }
 
     @Test

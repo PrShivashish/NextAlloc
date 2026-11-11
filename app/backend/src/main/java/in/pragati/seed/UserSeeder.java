@@ -32,7 +32,7 @@ public class UserSeeder {
     public ApplicationRunner seedUsers(UserRepository users, ProviderRepository providers, PasswordEncoder encoder) {
         return args -> {
             if (users.count() > 0) return;
-            users.save(user(ADMIN_EMAIL, ADMIN_PASSWORD, "Asha Iyer", Role.ADMIN, encoder));
+            users.save(user(ADMIN_EMAIL, ADMIN_PASSWORD, "Shivashish Prusty", Role.ADMIN, encoder));
             users.save(user(PROVIDER_EMAIL, PROVIDER_PASSWORD, "Dr. R. K. Malhotra", Role.PROVIDER, encoder));
             users.save(user(CANDIDATE_EMAIL, CANDIDATE_PASSWORD, "Aarav Sharma", Role.CANDIDATE, encoder));
             User providerUser = users.findByEmail(PROVIDER_EMAIL).orElseThrow();
