@@ -79,7 +79,7 @@ class AuthServiceTest {
         User u = new User();
         u.id = 1L;
         u.email = "admin@nextalloc.in";
-        u.name = "Asha Iyer";
+        u.name = "Shivashish Prusty";
         u.role = Role.ADMIN;
         u.status = UserStatus.ACTIVE;
         u.passwordHash = "hash123";
@@ -95,7 +95,7 @@ class AuthServiceTest {
         User u = new User();
         u.id = 1L;
         u.email = "admin@nextalloc.in";
-        u.name = "Asha Iyer";
+        u.name = "Shivashish Prusty";
         u.role = Role.ADMIN;
         u.status = UserStatus.DISABLED;
         u.passwordHash = "hash123";

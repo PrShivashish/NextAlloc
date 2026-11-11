@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+dist/
+target/
+.venv/
+venv/
+.venvPragati/
+__pycache__/
+*.pyc
+
+# Local Environment & Secrets
+.env
+.env.local
+*.log
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Testing, Scratch & Audit Artifacts (Not required for deployment)
+app/scratch/
+app/backend/data/uploads/
+evidence/
+project-notes/
+RELEASE_ACCEPTANCE.md
+qa_browser_audit/
+.pytest_cache/
+
+# Acceptance & Temporary Stacks
+app/docker-compose.*.yml
+app/compose.local.yaml
+!app/docker-compose.yml
+app/backend/Dockerfile.e2e
+scripts/test_*.py
+scripts/browser_test_runner.py
+scripts/run_browser_acceptance.py
+scripts/test_cdp_*.py

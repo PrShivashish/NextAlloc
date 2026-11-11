@@ -59,7 +59,7 @@ public class ScenarioLifecycleIntegrityTest {
 
     @BeforeEach
     void setUp() {
-        adminUser = new AuthUser(1L, "admin@pragati.gov.in", "Asha Iyer", "ADMIN");
+        adminUser = new AuthUser(1L, "admin@pragati.gov.in", "Shivashish Prusty", "ADMIN");
     }
 
     private void cleanBaseline() {

@@ -1,6 +1,6 @@
-# =============================================================================
-#  PRAGATI — one-click demo starter (Windows)
-#  AI Smart Allocation for the PM Internship Scheme  (SIH25033)
+﻿# =============================================================================
+#  NextAlloc — one-click demo starter (Windows)
+#  AI-Powered Smart Internship Allocation Engine (SIH25033)
 #
 #  What this does:
 #    1. Checks prerequisites (Java 17, Python 3.10+, optionally Node.js)
@@ -17,7 +17,7 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Definition
 Write-Host ""
-Write-Host "  PRAGATI — Smart Internship Allocation" -ForegroundColor Cyan
+Write-Host "  NextAlloc — Smart Internship Allocation Engine" -ForegroundColor Cyan
 Write-Host "  Starting the demonstration environment..." -ForegroundColor Cyan
 Write-Host ""
 

@@ -1118,7 +1118,7 @@ export default function CandidateProfile() {
         </div>
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-navy-100 pt-3">
           <span className="text-[11.5px] text-navy-400">
-            Validated against Pragati's official skill taxonomy. Unrecognized terms will be safely rejected.
+            Validated against NextAlloc's official skill taxonomy. Unrecognized terms will be safely rejected.
           </span>
           <button
             className="btn-primary"

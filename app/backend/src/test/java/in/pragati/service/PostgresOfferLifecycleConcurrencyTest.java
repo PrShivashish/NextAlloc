@@ -35,7 +35,6 @@ import in.pragati.domain.enums.OppStatus;
 import in.pragati.domain.enums.Qualification;
 import in.pragati.domain.enums.Role;
 import in.pragati.domain.enums.RunStatus;
-import in.pragati.domain.enums.ScenarioKey;
 import in.pragati.domain.enums.Sector;
 import in.pragati.repo.AllocationRunRepository;
 import in.pragati.repo.CandidateProfileRepository;
@@ -131,46 +130,25 @@ public class PostgresOfferLifecycleConcurrencyTest {
             o.providerId = prov.id;
             o.title = "Postgres Opportunity";
             o.capacity = 2;
-            o.durationMonths = 6;
             o.sector = Sector.SOFTWARE_IT;
             o.state = "Karnataka";
             o.city = "Bengaluru";
             o.minQualification = Qualification.BACHELORS;
             o.status = OppStatus.ACTIVE;
-            o.createdAt = Instant.now();
-            o.updatedAt = Instant.now();
             return oppRepo.save(o);
         });
 
-        run1 = runRepo.findByRunCode("PG-RUN-1").orElseGet(() -> {
+        run1 = runRepo.findAll().stream().findFirst().orElseGet(() -> {
             AllocationRun r = new AllocationRun();
             r.runCode = "PG-RUN-1";
-            r.number = 101;
-            r.scenario = ScenarioKey.STANDARD_SHOWCASE;
-            r.snapshotId = 1L;
-            r.policyName = "PG Test Policy 1";
-            r.policyKey = "balanced";
-            r.policyVersion = "1.0.0";
-            r.weightsJson = "{}";
             r.status = RunStatus.COMPLETED;
-            r.fullCoverage = false;
-            r.createdAt = Instant.now();
             return runRepo.save(r);
         });
 
-        run2 = runRepo.findByRunCode("PG-RUN-2").orElseGet(() -> {
+        run2 = runRepo.findAll().stream().filter(r -> !r.id.equals(run1.id)).findFirst().orElseGet(() -> {
             AllocationRun r = new AllocationRun();
             r.runCode = "PG-RUN-2";
-            r.number = 102;
-            r.scenario = ScenarioKey.STANDARD_SHOWCASE;
-            r.snapshotId = 1L;
-            r.policyName = "PG Test Policy 2";
-            r.policyKey = "balanced";
-            r.policyVersion = "1.0.0";
-            r.weightsJson = "{}";
             r.status = RunStatus.COMPLETED;
-            r.fullCoverage = false;
-            r.createdAt = Instant.now();
             return runRepo.save(r);
         });
     }

@@ -1,4 +1,4 @@
-﻿# NextAlloc — API Guide
+# NextAlloc — API Guide
 
 Interactive, always-current documentation is served at
 **`http://localhost:8080/swagger-ui.html`** (OpenAPI at `/v3/api-docs`). This guide is a
@@ -12,7 +12,7 @@ curated reference. All endpoints except `/api/auth/login` and `/api/health` requ
 | POST | `/api/auth/login` | public | Sign in, returns a JWT |
 | GET | `/api/auth/me` | any signed-in | Current user + role |
 
-Login body: `{"email":"admin@pragati.gov.in","password":"Admin@123"}`.
+Login body: `{"email":"admin@nextalloc.in","password":"Admin@123"}` (or legacy `admin@pragati.gov.in`).
 
 ## System
 

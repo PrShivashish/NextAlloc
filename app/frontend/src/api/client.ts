@@ -1,13 +1,21 @@
 import axios, { AxiosError } from 'axios';
 
-const TOKEN_KEY = 'pragati_token';
+const TOKEN_KEY = 'nextalloc_token';
+const LEGACY_TOKEN_KEY = 'pragati_token';
 
 export const api = axios.create({ baseURL: '/api', timeout: 120000 });
 
-export function getToken(): string | null { return localStorage.getItem(TOKEN_KEY); }
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY);
+}
 export function setToken(t: string | null) {
-  if (t) localStorage.setItem(TOKEN_KEY, t);
-  else localStorage.removeItem(TOKEN_KEY);
+  if (t) {
+    localStorage.setItem(TOKEN_KEY, t);
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
+  }
 }
 
 api.interceptors.request.use((cfg) => {

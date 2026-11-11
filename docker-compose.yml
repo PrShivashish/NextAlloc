@@ -1,0 +1,35 @@
+# NextAlloc — Production & Local Full-Stack Compose
+# Run: docker compose up --build
+# Access: http://localhost:8080 (Complete Web Platform + API + AI Engine)
+
+services:
+  ai-service:
+    build:
+      context: ./app/ai-service
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: ./app/backend
+      dockerfile: Dockerfile
+    environment:
+      PRAGATI_AI_URL: http://ai-service:8000
+      PRAGATI_STATIC_DIR: /app/frontend-dist
+      PRAGATI_UPLOADS_DIR: /app/data/uploads
+    ports:
+      - "8080:8080"
+    volumes:
+      - nextalloc_uploads:/app/data/uploads
+    depends_on:
+      ai-service:
+        condition: service_started
+
+volumes:
+  nextalloc_uploads:

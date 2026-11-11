@@ -1,11 +1,11 @@
-﻿# NextAlloc — 15-Minute Judge Walkthrough
+# NextAlloc — 15-Minute Judge Walkthrough
 
 The app also has a built-in guided mode: open the **Judge walkthrough** page (admin) and it
 replays this narrative step by step against live data. This document is the script for the
 human demo.
 
-**Setup:** open `http://localhost:8080`. Sign in as **Admin** (`admin@pragati.gov.in` /
-`Admin@123`) — credentials are pre-filled.
+**Setup:** open `http://localhost:8080`. Sign in as **Admin** (`admin@nextalloc.in` /
+`Admin@123` or legacy `admin@pragati.gov.in`) — credentials are pre-filled.
 
 ---
 

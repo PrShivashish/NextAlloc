@@ -1,0 +1,13 @@
+**/.git
+**/.pytest_cache
+**/__pycache__
+**/*.pyc
+**/target
+**/node_modules
+**/dist
+**/.venv
+**/venv
+**/evidence
+**/project-notes
+**/qa_browser_audit
+**/*.log

@@ -155,7 +155,7 @@ public class EvidenceServiceTest {
         adminDbUser = new User();
         adminDbUser.email = "admin_" + UUID.randomUUID() + "@pragati.gov.in";
         adminDbUser.passwordHash = "hash";
-        adminDbUser.name = "Asha Iyer";
+        adminDbUser.name = "Shivashish Prusty";
         adminDbUser.role = Role.ADMIN;
         adminDbUser = userRepo.save(adminDbUser);
 
