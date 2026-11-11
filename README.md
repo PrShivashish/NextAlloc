@@ -171,7 +171,5 @@ npm --prefix app/frontend run build
 
 ---
 
-## 📄 License & Attribution
-
-Developed for **Smart India Hackathon 2026** (Problem Statement: SIH25033).  
+## 📄 License & Attribution 
 All demonstration records, AISHE codes, institution names, and candidate identities are synthetic.
