@@ -1,4 +1,6 @@
-.venvPragati/ 
+.venv/
+.venv*/
+.venvNextAlloc/ 
 venv/
 __pycache__/
 *.pyc

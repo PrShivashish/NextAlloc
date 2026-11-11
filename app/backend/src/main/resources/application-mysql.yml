@@ -1,9 +1,9 @@
 spring:
   datasource:
-    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/pragati?useSSL=false&serverTimezone=Asia/Kolkata&rewriteBatchedStatements=true}
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/nextalloc?useSSL=false&serverTimezone=Asia/Kolkata&rewriteBatchedStatements=true}
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: ${MYSQL_USER:pragati}
-    password: ${MYSQL_PASSWORD:pragati}
+    username: ${MYSQL_USER:nextalloc}
+    password: ${MYSQL_PASSWORD:nextalloc}
   jpa:
     hibernate:
       ddl-auto: update

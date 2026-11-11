@@ -3,8 +3,8 @@ node_modules/
 dist/
 target/
 .venv/
-venv/
-.venvPragati/
+.venv*/
+.venvNextAlloc/
 __pycache__/
 *.pyc
 

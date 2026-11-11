@@ -24,6 +24,9 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
+      NEXTALLOC_AI_URL: http://ai-service:8000
+      NEXTALLOC_STATIC_DIR: /app/frontend-dist
+      NEXTALLOC_UPLOADS_DIR: /app/data/uploads
       PRAGATI_AI_URL: http://ai-service:8000
       PRAGATI_STATIC_DIR: /app/frontend-dist
       PRAGATI_UPLOADS_DIR: /app/data/uploads

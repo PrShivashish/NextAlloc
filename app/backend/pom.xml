@@ -11,8 +11,8 @@
     <relativePath/>
   </parent>
 
-  <groupId>in.pragati</groupId>
-  <artifactId>pragati-backend</artifactId>
+  <groupId>in.nextalloc</groupId>
+  <artifactId>nextalloc-backend</artifactId>
   <version>1.0.0</version>
   <name>NextAlloc Backend</name>
   <description>NextAlloc — AI-Powered Internship Allocation Engine (SIH25033)</description>
@@ -125,7 +125,7 @@
   </dependencies>
 
   <build>
-    <finalName>pragati-backend</finalName>
+    <finalName>nextalloc-backend</finalName>
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>
