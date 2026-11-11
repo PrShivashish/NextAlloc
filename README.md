@@ -5,7 +5,6 @@
 </p>
 
 <p align="center">
-  <strong>Smart India Hackathon 2026 · Problem Statement SIH25033</strong><br />
   <em>A transparent, global, constraint-satisfaction allocation engine with explainable AI for the PM Internship Scheme.</em>
 </p>
 
