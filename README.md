@@ -129,7 +129,7 @@ Open [http://localhost:5173](http://localhost:5173). API requests are automatica
 
 NextAlloc is designed with production-grade security defaults:
 
-- **JWT Authentication:** Stateful token validation with configurable signing secret (`NEXTALLOC_JWT_SECRET`, legacy fallback `PRAGATI_JWT_SECRET`) and 12-hour expiration window.
+- **JWT Authentication:** Stateful token validation with configurable signing secret (`NEXTALLOC_JWT_SECRET`) and 12-hour expiration window.
 - **Login Rate Limiting:** In-memory bucket token rate limiter (`NEXTALLOC_RATE_LIMIT_LOGIN_PER_MINUTE`, default `8` req/min per IP) to prevent brute-force attacks.
 - **Role-Based Access Control (RBAC):** Strict Spring Security URL boundaries (`/api/admin/**` restricted to `ROLE_ADMIN`, `/api/providers/**` to `ROLE_PROVIDER`, `/api/candidates/**` to `ROLE_CANDIDATE`).
 - **Pessimistic Concurrency Control:** Row-level locks (`SELECT ... FOR UPDATE`) on opportunity seat capacities and candidate active placement counters prevent oversubscription even under high-concurrency race conditions.
