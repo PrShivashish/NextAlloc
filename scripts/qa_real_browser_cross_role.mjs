@@ -281,7 +281,7 @@ async function main() {
       await provPage.reload({ waitUntil: 'networkidle' });
       await provPage.waitForTimeout(500);
       const provTextAfterReload = await provPage.locator('main').innerText();
-      report.providerJoining.persistedAfterReload = /Candidates joined\s*1|All active offers have been processed/i.test(provTextAfterReload);
+      report.providerJoining.persistedAfterReload = /(?:Candidates joined\s*1|1\s*Candidates joined|All active offers have been processed)/i.test(provTextAfterReload);
       console.log('  ✓ Provider UI persistence verified after hard reload.');
       await provPage.screenshot({ path: path.join(OUT_DIR, 'browser_provider_joined.png') });
 
@@ -312,12 +312,15 @@ async function main() {
     await browser.close();
   } finally {
     if (proxyServer) {
+      if (typeof proxyServer.closeAllConnections === 'function') {
+        proxyServer.closeAllConnections();
+      }
       proxyServer.close();
     }
   }
 
   process.stdout.write(JSON.stringify(report, null, 2));
-  if (!report.passed) process.exit(1);
+  process.exit(report.passed ? 0 : 1);
 }
 
 main();

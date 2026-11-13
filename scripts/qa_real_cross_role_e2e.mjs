@@ -103,15 +103,27 @@ async function main() {
       }
       console.log(`  ✓ Solver completed: ${completedRun.run.solverStatus} (${completedRun.provenance?.solverRuntimeMs ?? 0}ms)`);
 
-      // Ensure offers are generated
-      const genOffersRes = await req(`/admin/runs/${runId}/generate-offers`, {
-        method: 'POST',
-        headers: adminHeader,
-      });
-      console.log(`  Offers generated: ${JSON.stringify(genOffersRes.data)}`);
-
-      candOffersRes = await req('/candidates/me/offers', { headers: candHeader });
-      offers = candOffersRes.data;
+      // Wait for durable offers to be populated by the solver completion listener
+      let offersReady = false;
+      for (let j = 0; j < 10; j++) {
+        await new Promise(r => setTimeout(r, 1000));
+        candOffersRes = await req('/candidates/me/offers', { headers: candHeader });
+        offers = candOffersRes.data;
+        if (Array.isArray(offers) && offers.length > 0) {
+          offersReady = true;
+          console.log(`  ✓ Durable offers auto-generated (${offers.length} candidate offer(s) ready).`);
+          break;
+        }
+      }
+      if (!offersReady) {
+        const genOffersRes = await req(`/admin/runs/${runId}/generate-offers`, {
+          method: 'POST',
+          headers: adminHeader,
+        });
+        console.log(`  Offers generated via API fallback: ${JSON.stringify(genOffersRes.data)}`);
+        candOffersRes = await req('/candidates/me/offers', { headers: candHeader });
+        offers = candOffersRes.data;
+      }
     }
 
     const targetOffer = offers.find(o => o.status === 'OFFERED') || offers[0];
@@ -228,7 +240,7 @@ async function main() {
   }
 
   process.stdout.write(JSON.stringify(results, null, 2));
-  if (!results.passed) process.exit(1);
+  process.exit(results.passed ? 0 : 1);
 }
 
 main();
