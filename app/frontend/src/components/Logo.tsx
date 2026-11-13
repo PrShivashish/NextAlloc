@@ -61,7 +61,7 @@ export function LogoMark({
   const imgWidth = Math.round(containerWidth * 1.18);
   return (
     <div
-      className={`relative inline-flex items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-white/10 ${className}`}
+      className={`relative inline-flex items-center justify-center overflow-hidden rounded-[var(--na-radius-lg)] bg-[var(--na-surface)] shadow-[var(--na-shadow-sm)] ring-1 ring-white/15 ${className}`}
       style={{ width: containerWidth, height: containerHeight }}
     >
       <img

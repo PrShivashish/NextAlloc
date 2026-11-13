@@ -1,0 +1,180 @@
+/* Hallmark · genre: editorial · shape: app screen · posture: restrained · surface: absolute */
+/* ==========================================================================
+   NextAlloc Design Tokens
+   Hallmark Floor Rule 1: Every color and font used through a token at :root.
+   Do not add raw hex values or raw font names in component files.
+   ========================================================================== */
+
+:root {
+  /* --------------------------------------------------------------------------
+     Color — Canvas, Surfaces & 3-Surface Section Rhythm
+     1. Paper White (--na-surface) / Warm Bone (--na-canvas)
+     2. Warm Stone (--na-stone) — gentle band rhythm without boxy borders
+     3. Deep Forest Anchor (--na-anchor) — high-contrast bands & login brand panel
+  -------------------------------------------------------------------------- */
+  --na-canvas:          #F7F5F0;   /* Warm bone: page background */
+  --na-surface:         #FDFCF9;   /* Warm paper white: primary card/panel surfaces */
+  --na-surface-raised:  #FCFAF6;   /* Subtle raised warm panel */
+  --na-stone:           #F0EDE5;   /* Warm stone: secondary section band */
+  --na-well:            #F0EDE7;   /* Tinted well: borderless inset surface */
+
+  --na-anchor:          #0D201A;   /* Deep Forest Slate: high-contrast section bands, login left panel */
+  --na-anchor-2:        #142B24;   /* Lifted forest surface: subtle separation on anchor without borders */
+  --na-anchor-ink:      #F7F5F0;   /* Warm stone primary text on --na-anchor */
+  --na-anchor-muted:    #A3B8B0;   /* Secondary muted text on --na-anchor */
+
+  /* --------------------------------------------------------------------------
+     Color — Ink (Typography)
+  -------------------------------------------------------------------------- */
+  --na-ink-primary:     #1A1A2E;   /* Deep charcoal navy: headings, primary text */
+  --na-ink-secondary:   #52525B;   /* Slate charcoal: >= 6.6:1 AA contrast on stone & bone */
+  --na-ink-tertiary:    #63636E;   /* Muted slate: >= 5.1:1 AA contrast for captions & placeholders */
+  --na-ink-inverse:     #F7F5F0;   /* Text on dark or filled accent surfaces */
+
+  /* --------------------------------------------------------------------------
+     Color — Accent (NextAlloc Saffron) & Signal Highlight
+     RESTRAINED: Primary CTA buttons, active nav rail, focus rings, and key
+     numeric highlights only. Keep under 5% of any viewport.
+  -------------------------------------------------------------------------- */
+  --na-accent:          #EE8420;   /* NextAlloc saffron — exact brand accent */
+  --na-accent-hover:    #D96E14;   /* Darkened saffron for hover/active states */
+  --na-accent-subtle:   #FDF4E8;   /* Soft warm tint for active row/pill fill */
+  --na-accent-ink:      #92490A;   /* High-contrast amber text on subtle/light bg */
+
+  /* Crisp Lime highlight — ONLY for small indicator dots/bars or fill chips
+     paired strictly with --na-anchor (#0D201A) dark text (>=12:1 WCAG contrast).
+     NEVER use --na-signal as text on white or warm bone! */
+  --na-signal:          #DDF326;
+
+  /* --------------------------------------------------------------------------
+     Color — Borders & Dividers
+  -------------------------------------------------------------------------- */
+  --na-border-subtle:   rgba(26, 26, 46, 0.05);   /* Ultra-light table/row rule */
+  --na-border:          rgba(26, 26, 46, 0.08);   /* Hairline — 1px dividers */
+  --na-border-strong:   rgba(26, 26, 46, 0.16);   /* Input & control borders */
+
+  /* --------------------------------------------------------------------------
+     Color — Status (bg + text + border pairs)
+     Never rely on color alone; always pair with text label or icon.
+  -------------------------------------------------------------------------- */
+  --na-success-bg:      #ECFDF5;
+  --na-success-text:    #166534;
+  --na-success-border:  rgba(22, 101, 52, 0.20);
+
+  --na-warning-bg:      #FFFBEB;
+  --na-warning-text:    #92400E;
+  --na-warning-border:  rgba(146, 64, 14, 0.20);
+
+  --na-error-bg:        #FFF1F2;
+  --na-error-text:      #9F1239;
+  --na-error-border:    rgba(159, 18, 57, 0.20);
+
+  --na-info-bg:         #EFF6FF;
+  --na-info-text:       #1E40AF;
+  --na-info-border:     rgba(30, 64, 175, 0.20);
+
+  --na-neutral-bg:      #F0EDE5;
+  --na-neutral-text:    #1A1A2E;
+  --na-neutral-border:  rgba(26, 26, 46, 0.12);
+
+  /* Clean status pill aliases */
+  --na-status-success-bg:     var(--na-success-bg);
+  --na-status-success-text:   var(--na-success-text);
+  --na-status-success-border: var(--na-success-border);
+  --na-status-warning-bg:     var(--na-warning-bg);
+  --na-status-warning-text:   var(--na-warning-text);
+  --na-status-warning-border: var(--na-warning-border);
+  --na-status-error-bg:       var(--na-error-bg);
+  --na-status-error-text:     var(--na-error-text);
+  --na-status-error-border:   var(--na-error-border);
+  --na-status-info-bg:        var(--na-info-bg);
+  --na-status-info-text:      var(--na-info-text);
+  --na-status-info-border:    var(--na-info-border);
+  --na-status-neutral-bg:     var(--na-neutral-bg);
+  --na-status-neutral-text:   var(--na-neutral-text);
+  --na-status-neutral-border: var(--na-neutral-border);
+
+  /* --------------------------------------------------------------------------
+     Typography — Font Families
+     Body: Inter Variable (already bundled via @fontsource-variable/inter)
+     Display: Sora Variable (already bundled via @fontsource-variable/sora)
+     Mono: JetBrains Mono for code, IDs, and tabular data measurements
+  -------------------------------------------------------------------------- */
+  --na-font-sans:     'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --na-font-display:  'Sora Variable', Sora, 'Inter Variable', Inter, system-ui, sans-serif;
+  --na-font-mono:     'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+
+  /* --------------------------------------------------------------------------
+     Typography — Scale
+     Base 16px; institutional editorial app hierarchy.
+  -------------------------------------------------------------------------- */
+  --na-text-display:    2.5rem;    /* 40px */
+  --na-text-h1:         1.75rem;   /* 28px */
+  --na-text-h2:         1.375rem;  /* 22px */
+  --na-text-h3:         1.125rem;  /* 18px */
+  --na-text-h4:         1rem;      /* 16px */
+  --na-text-body-lg:    1rem;      /* 16px */
+  --na-text-body-md:    0.9375rem; /* 15px */
+  --na-text-body-sm:    0.875rem;  /* 14px */
+  --na-text-caption:    0.8125rem; /* 13px */
+  --na-text-mono:       0.875rem;  /* 14px */
+
+  /* --------------------------------------------------------------------------
+     Typography — Line Heights
+  -------------------------------------------------------------------------- */
+  --na-leading-tight:   1.2;
+  --na-leading-snug:    1.4;
+  --na-leading-normal:  1.5;
+  --na-leading-relaxed: 1.65;
+
+  /* --------------------------------------------------------------------------
+     Spacing Scale (4px base: 4, 8, 12, 16, 20, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160px)
+  -------------------------------------------------------------------------- */
+  --na-space-1:   4px;
+  --na-space-2:   8px;
+  --na-space-3:   12px;
+  --na-space-4:   16px;
+  --na-space-5:   20px;
+  --na-space-6:   24px;
+  --na-space-7:   32px;
+  --na-space-8:   40px;
+  --na-space-9:   48px;
+  --na-space-10:  56px;
+  --na-space-11:  64px;
+  --na-space-12:  80px;
+  --na-space-13:  96px;
+  --na-space-14:  112px;
+  --na-space-15:  128px;
+  --na-space-16:  160px;
+
+  /* --------------------------------------------------------------------------
+     Border Radius
+  -------------------------------------------------------------------------- */
+  --na-radius-sm:   4px;
+  --na-radius-md:   6px;
+  --na-radius-lg:   8px;
+
+  /* --------------------------------------------------------------------------
+     Shadows
+     Minimal elevation. Never pair border + wide soft shadow on the same surface.
+  -------------------------------------------------------------------------- */
+  --na-shadow-sm:   0 1px 2px rgba(26, 26, 46, 0.05);
+  --na-shadow-md:   0 2px 8px -2px rgba(26, 26, 46, 0.08), 0 1px 2px rgba(26, 26, 46, 0.04);
+
+  /* --------------------------------------------------------------------------
+     Motion
+     Animate transform and opacity only (or explicit color/background-color).
+     Never use transition: all.
+  -------------------------------------------------------------------------- */
+  --na-duration-fast:    150ms;
+  --na-duration-base:    200ms;
+  --na-easing-standard:  cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* --------------------------------------------------------------------------
+     Z-Index Scale
+  -------------------------------------------------------------------------- */
+  --na-z-dropdown:  100;
+  --na-z-sticky:    200;
+  --na-z-modal:     400;
+  --na-z-toast:     500;
+}

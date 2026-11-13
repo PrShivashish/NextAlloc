@@ -1,0 +1,147 @@
+/* Hallmark · genre: editorial · shape: app screen · posture: restrained · surface: absolute */
+/* ==========================================================================
+   NextAlloc Base Styles
+   Hallmark Floor compliance:
+   - Rule 1: Tokens at :root
+   - Rule 4: overflow-x: clip on html and body
+   - Rule 6: :focus-visible ring
+   - Rule 7: prefers-reduced-motion: reduce
+   ========================================================================== */
+
+@import './tokens.css';
+
+html {
+  box-sizing: border-box;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+  font-size: 16px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+body {
+  overflow-x: clip;
+  margin: 0;
+  padding: 0;
+  font-family: var(--na-font-sans);
+  font-size: var(--na-text-body-md);
+  line-height: var(--na-leading-normal);
+  color: var(--na-ink-primary);
+  background-color: var(--na-canvas);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  caret-color: var(--na-accent);
+}
+
+/* --------------------------------------------------------------------------
+   Typography Base
+-------------------------------------------------------------------------- */
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-family: var(--na-font-sans);
+  font-weight: 600;
+  line-height: var(--na-leading-tight);
+  color: var(--na-ink-primary);
+  text-wrap: balance;
+}
+
+h1 { font-size: var(--na-text-h1); letter-spacing: -0.02em; }
+h2 { font-size: var(--na-text-h2); letter-spacing: -0.015em; }
+h3 { font-size: var(--na-text-h3); }
+h4 { font-size: var(--na-text-h4); font-weight: 500; }
+
+p {
+  margin: 0;
+  line-height: var(--na-leading-relaxed);
+  text-wrap: pretty;
+}
+
+/* --------------------------------------------------------------------------
+   Focus Visible — Hallmark Floor Rule 6
+   2px offset ring in --na-accent. Instant (never animated).
+-------------------------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--na-accent);
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--na-accent);
+  outline-offset: -1px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* --------------------------------------------------------------------------
+   Tabular Numerals — Required for all data, counts, scores, and tables
+-------------------------------------------------------------------------- */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+.na-mono {
+  font-family: var(--na-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--na-text-mono);
+}
+
+/* --------------------------------------------------------------------------
+   Layout & Surface Utilities
+-------------------------------------------------------------------------- */
+.na-divider {
+  border: 0;
+  border-bottom: 1px solid var(--na-border);
+  margin: 0;
+}
+
+.na-container {
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding-inline: var(--na-space-4);
+}
+
+@media (min-width: 768px) {
+  .na-container {
+    padding-inline: var(--na-space-6);
+  }
+}
+
+@media (min-width: 1280px) {
+  .na-container {
+    padding-inline: var(--na-space-8);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Browser Surface Selection
+-------------------------------------------------------------------------- */
+::selection {
+  background-color: var(--na-accent-subtle);
+  color: var(--na-ink-primary);
+}
+
+/* --------------------------------------------------------------------------
+   Reduced Motion — Hallmark Floor Rule 7
+-------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

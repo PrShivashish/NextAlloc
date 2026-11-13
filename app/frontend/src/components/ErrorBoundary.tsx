@@ -32,7 +32,7 @@ export default class ErrorBoundary extends React.Component<{ children: React.Rea
           <div>
             <div className="font-display text-[17px] font-bold text-ink">Something went wrong on this page</div>
             <p className="mt-1.5 text-[13px] leading-relaxed text-navy-500">
-              The rest of NextAlloc is still running. Reload the page to continue —
+              The rest of NextAlloc is still running. Reload the page to continue;
               your data and any completed runs are safe.
             </p>
           </div>

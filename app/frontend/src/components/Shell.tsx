@@ -1,95 +1,209 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Database, History, FlaskConical, RefreshCcw, ScrollText, Compass, Cpu,
-  User, Briefcase, Building2, LogOut, Gauge, ShieldCheck,
+  LayoutDashboard,
+  Database,
+  History,
+  FlaskConical,
+  RefreshCcw,
+  ScrollText,
+  Compass,
+  Cpu,
+  User,
+  Briefcase,
+  Building2,
+  LogOut,
+  Gauge,
+  ShieldCheck,
+  Menu,
+  X,
+  type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { LogoMark } from './Logo';
 
-const ADMIN_NAV = [
-  { to: '/admin', end: true, label: 'Command Center', icon: LayoutDashboard },
+export interface NavItem {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  end?: boolean;
+}
+
+const ADMIN_NAV: NavItem[] = [
+  { to: '/admin', end: true, label: 'Command center', icon: LayoutDashboard },
   { to: '/admin/verification', label: 'Verification & NOCs', icon: ShieldCheck },
-  { to: '/admin/scenarios', label: 'Scenarios & Dataset', icon: Database },
-  { to: '/admin/runs', label: 'Allocation Runs', icon: History },
-  { to: '/admin/whatif', label: 'Policy Lab (What-if)', icon: FlaskConical },
+  { to: '/admin/scenarios', label: 'Scenarios & dataset', icon: Database },
+  { to: '/admin/runs', label: 'Allocation runs', icon: History },
+  { to: '/admin/whatif', label: 'Policy lab (What-if)', icon: FlaskConical },
   { to: '/admin/reallocation', label: 'Reallocation', icon: RefreshCcw },
-  { to: '/admin/audit', label: 'Audit Trail', icon: ScrollText },
-  { to: '/admin/judge', label: 'Judge Walkthrough', icon: Compass },
-  { to: '/admin/technical', label: 'System Health', icon: Cpu },
-];
-const CAND_NAV = [
-  { to: '/candidate', end: true, label: 'My Dashboard', icon: LayoutDashboard },
-  { to: '/candidate/explore', label: 'Explore Opportunities', icon: Briefcase },
-  { to: '/candidate/analytics', label: 'My Fit Analytics', icon: Gauge },
-  { to: '/candidate/profile', label: 'My Profile', icon: User },
-];
-const PROV_NAV = [
-  { to: '/provider', end: true, label: 'Provider Overview', icon: LayoutDashboard },
-  { to: '/provider/opportunities', label: 'My Opportunities', icon: Building2 },
+  { to: '/admin/audit', label: 'Audit trail', icon: ScrollText },
+  { to: '/admin/judge', label: 'Judge walkthrough', icon: Compass },
+  { to: '/admin/technical', label: 'System health', icon: Cpu },
 ];
 
-const TITLES: [string, string][] = [
-  ['/admin/verification', 'Verification & Governance'],
-  ['/admin/scenarios', 'Scenarios & Dataset'], ['/admin/runs', 'Allocation Runs'], ['/admin/whatif', 'Policy Lab'],
-  ['/admin/reallocation', 'Reallocation'], ['/admin/audit', 'Audit Trail'], ['/admin/judge', 'Judge Walkthrough'],
-  ['/admin/technical', 'System Health'], ['/candidate/explore', 'Explore Opportunities'],
-  ['/candidate/analytics', 'My Fit Analytics'], ['/candidate/profile', 'My Profile'], ['/provider/opportunities', 'My Opportunities'],
+const CAND_NAV: NavItem[] = [
+  { to: '/candidate', end: true, label: 'My dashboard', icon: LayoutDashboard },
+  { to: '/candidate/explore', label: 'Explore opportunities', icon: Briefcase },
+  { to: '/candidate/analytics', label: 'My fit analytics', icon: Gauge },
+  { to: '/candidate/profile', label: 'My profile', icon: User },
+];
+
+const PROV_NAV: NavItem[] = [
+  { to: '/provider', end: true, label: 'Provider overview', icon: LayoutDashboard },
+  { to: '/provider/opportunities', label: 'My opportunities', icon: Building2 },
 ];
 
 export default function Shell() {
   const { me, logout } = useAuth();
   const loc = useLocation();
-  const nav = me?.role === 'ADMIN' ? ADMIN_NAV : me?.role === 'PROVIDER' ? PROV_NAV : CAND_NAV;
-  const title = TITLES.find(([p]) => loc.pathname.startsWith(p) && p !== '/admin')?.[1];
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const hamburgerRef = useRef<HTMLButtonElement>(null);
+
+  const nav: NavItem[] =
+    me?.role === 'ADMIN' ? ADMIN_NAV : me?.role === 'PROVIDER' ? PROV_NAV : CAND_NAV;
+  const homePath =
+    me?.role === 'ADMIN' ? '/admin' : me?.role === 'PROVIDER' ? '/provider' : '/candidate';
+  const roleLabel =
+    me?.role === 'ADMIN' ? 'Admin' : me?.role === 'PROVIDER' ? 'Provider' : 'Candidate';
+  const sectionLabel =
+    me?.role === 'ADMIN'
+      ? 'Administration'
+      : me?.role === 'PROVIDER'
+        ? 'Organization'
+        : 'Workspace';
+
+  const displayName = me?.name || me?.email || 'Account';
+  const initial = displayName.slice(0, 1).toUpperCase();
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [loc.pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileOpen(false);
+        hamburgerRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [mobileOpen]);
+
+  const closeDrawer = () => {
+    setMobileOpen(false);
+    hamburgerRef.current?.focus();
+  };
 
   return (
-    <div className="flex h-full">
-      <aside className="sidebar-glass fixed inset-y-0 left-0 z-40 flex w-[248px] flex-col border-r border-white/5">
-        <div className="flex justify-center px-5 pb-5 pt-6">
-          <LogoMark height={32} />
+    <div className="na-shell">
+      <header className="na-mobile-header">
+        <div className="na-mobile-header-left">
+          <button
+            ref={hamburgerRef}
+            type="button"
+            className="na-hamburger"
+            aria-label="Open navigation menu"
+            aria-expanded={mobileOpen}
+            aria-controls="na-sidebar"
+            onClick={() => setMobileOpen(true)}
+          >
+            <Menu size={20} aria-hidden="true" />
+          </button>
+          <NavLink to={homePath} className="na-brand-link" aria-label="NextAlloc home">
+            <LogoMark height={28} />
+          </NavLink>
         </div>
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3">
-          {nav.map(n => (
-            <NavLink key={n.to} to={n.to} end={n.end}
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <n.icon className="nav-ico" />
-              <span>{n.label}</span>
-            </NavLink>
-          ))}
+        <span className="na-role-pill">{roleLabel}</span>
+      </header>
+
+      <aside
+        id="na-sidebar"
+        className={`na-sidebar${mobileOpen ? ' is-open' : ''}`}
+        aria-label="Sidebar navigation"
+      >
+        <div className="na-sidebar-header">
+          <NavLink to={homePath} className="na-brand-link" aria-label="NextAlloc home">
+            <span className="na-brand-full">
+              <LogoMark height={30} />
+            </span>
+            <span className="na-brand-compact" aria-hidden="true">
+              NA
+            </span>
+          </NavLink>
+          <button
+            type="button"
+            className="na-sidebar-close"
+            aria-label="Close navigation menu"
+            onClick={closeDrawer}
+          >
+            <X size={20} aria-hidden="true" />
+          </button>
+        </div>
+
+        <nav className="na-sidebar-nav" aria-label="Primary navigation">
+          <div className="na-nav-section-label">{sectionLabel}</div>
+          {nav.map(item => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                onClick={() => setMobileOpen(false)}
+                aria-label={item.label}
+                className={({ isActive }) => `na-nav-item${isActive ? ' is-active' : ''}`}
+              >
+                <Icon className="na-nav-icon" aria-hidden="true" />
+                <span className="na-nav-label">{item.label}</span>
+                <span className="na-nav-tooltip" role="tooltip">
+                  {item.label}
+                </span>
+              </NavLink>
+            );
+          })}
         </nav>
-        <div className="border-t border-white/5 p-4">
-          <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-b from-saffron-400 to-saffron-600 text-[13px] font-bold text-white">
-              {me?.name?.slice(0, 1) ?? '?'}
+
+        <div className="na-sidebar-footer">
+          <div className="na-user-row">
+            <div className="na-avatar" aria-hidden="true">
+              {initial}
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[13px] font-semibold text-white">{me?.name}</div>
-              <div className="text-[11px] text-navy-300/80">{me?.role === 'ADMIN' ? 'Administrator' : me?.role === 'PROVIDER' ? 'Organisation Partner' : 'Candidate'}</div>
+            <div className="na-user-meta">
+              <div className="na-user-name" title={me?.email || me?.name || ''}>
+                {displayName}
+              </div>
+              <span className="na-role-pill">{roleLabel}</span>
             </div>
-            <button onClick={logout} title="Sign out" className="rounded-lg p-1.5 text-navy-300 transition hover:bg-white/10 hover:text-white">
-              <LogOut className="h-4 w-4" />
+            <button
+              type="button"
+              onClick={logout}
+              aria-label="Sign out"
+              title="Sign out"
+              className="na-icon-btn"
+            >
+              <LogOut size={18} aria-hidden="true" />
             </button>
-          </div>
-          <div className="rounded-lg bg-white/[0.04] px-2.5 py-1.5 text-[10px] leading-relaxed text-navy-300/60 ring-1 ring-white/5">
-            Demonstration environment · synthetic data
           </div>
         </div>
       </aside>
 
-      <div className="ml-[248px] flex min-h-full flex-1 flex-col">
-        <main className="flex-1 px-8 py-7">
-          <div className="mx-auto max-w-[1240px]">
-            <Outlet />
-          </div>
-        </main>
-        <footer className="border-t border-navy-900/[0.06] px-8 py-3">
-          <div className="mx-auto flex max-w-[1240px] items-center justify-between text-[11.5px] text-navy-400">
-            <span>Smart India Hackathon 2026 · SIH25033</span>
-            <span>Demonstration build · all data is synthetic and system-generated</span>
-          </div>
+      <div
+        className={`na-sidebar-backdrop${mobileOpen ? ' is-open' : ''}`}
+        onClick={() => setMobileOpen(false)}
+        aria-hidden="true"
+      />
+
+      <main className="na-main">
+        <div className="na-container na-main-content">
+          <Outlet />
+        </div>
+        <footer className="na-container na-main-footer">
+          <span>Smart India Hackathon 2026 (SIH25033)</span>
+          <span>Demonstration build with synthetic data</span>
         </footer>
-      </div>
+      </main>
     </div>
   );
 }
