@@ -1,8 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ShieldCheck, FileText, CheckCircle2, XCircle, HelpCircle,
-  AlertTriangle, Download, RefreshCw, UserCheck, Search,
-  GraduationCap, Building2, Calendar, Clock, ArrowRight, ShieldAlert,
+  FileText,
+  CheckCircle2,
+  XCircle,
+  HelpCircle,
+  AlertTriangle,
+  Download,
+  RefreshCw,
+  UserCheck,
+  Search,
+  GraduationCap,
+  ArrowRight,
 } from 'lucide-react';
 import { apiGet, apiPost, apiDownload, errMsg } from '../../api/client';
 import {
@@ -12,7 +20,17 @@ import {
   AcademicReviewDecision,
   Page,
 } from '../../api/types';
-import { SectionHeader, Spinner, Callout, Badge, StatCard } from '../../components/ui';
+import {
+  SectionHeader,
+  Spinner,
+  Callout,
+  Badge,
+  MetricBand,
+  Modal,
+  Disclosure,
+  fmtNum,
+  formatEnumLabel,
+} from '../../components/ui';
 
 export default function AdminVerification() {
   const [activeTab, setActiveTab] = useState<'noc' | 'academic'>('noc');
@@ -40,12 +58,14 @@ export default function AdminVerification() {
   const [submittingAcademic, setSubmittingAcademic] = useState(false);
   const [academicConflict, setAcademicConflict] = useState(false);
 
-  // Load NOC Queue
   const fetchNocQueue = async () => {
     setLoadingNocs(true);
     setNocErr('');
     try {
-      const data = await apiGet<Page<NocReviewQueueItemDto>>('/admin/evidence/noc/pending', { page: 0, size: 50 });
+      const data = await apiGet<Page<NocReviewQueueItemDto>>('/admin/evidence/noc/pending', {
+        page: 0,
+        size: 50,
+      });
       setNocQueue(data.content || []);
     } catch (e: any) {
       setNocErr(errMsg(e));
@@ -58,7 +78,6 @@ export default function AdminVerification() {
     void fetchNocQueue();
   }, []);
 
-  // Handle NOC Download
   const handleDownloadNoc = async (item: NocReviewQueueItemDto) => {
     try {
       await apiDownload(
@@ -70,18 +89,18 @@ export default function AdminVerification() {
     }
   };
 
-  // Submit NOC Review
   const handleNocDecision = async () => {
     if (!selectedNoc || !nocAction) return;
     setSubmittingNoc(true);
     setNocErr('');
     setNocMsg('');
     try {
-      const endpoint = nocAction === 'verify'
-        ? `/admin/evidence/noc/${selectedNoc.id}/verify`
-        : nocAction === 'reject'
-          ? `/admin/evidence/noc/${selectedNoc.id}/reject`
-          : `/admin/evidence/noc/${selectedNoc.id}/request-clarification`;
+      const endpoint =
+        nocAction === 'verify'
+          ? `/admin/evidence/noc/${selectedNoc.id}/verify`
+          : nocAction === 'reject'
+            ? `/admin/evidence/noc/${selectedNoc.id}/reject`
+            : `/admin/evidence/noc/${selectedNoc.id}/request-clarification`;
 
       const payload: any = {
         expectedVersion: selectedNoc.version,
@@ -94,14 +113,24 @@ export default function AdminVerification() {
 
       await apiPost(endpoint, payload);
 
-      setNocMsg(`NOC #${selectedNoc.id} for candidate ${selectedNoc.candidateName} successfully ${nocAction === 'verify' ? 'approved' : nocAction === 'reject' ? 'rejected' : 'marked for clarification'}.`);
+      setNocMsg(
+        `NOC #${selectedNoc.id} for candidate ${selectedNoc.candidateName} successfully ${
+          nocAction === 'verify'
+            ? 'approved'
+            : nocAction === 'reject'
+              ? 'rejected'
+              : 'marked for clarification'
+        }.`
+      );
       setSelectedNoc(null);
       setNocAction(null);
       setNocNotes('');
       await fetchNocQueue();
     } catch (e: any) {
       if (e.status === 409) {
-        setNocErr('Concurrency conflict (HTTP 409): This NOC was updated by another administrator or session. Reloading queue.');
+        setNocErr(
+          'Concurrency conflict (HTTP 409): This NOC was updated by another administrator or session. Reloading queue.'
+        );
         await fetchNocQueue();
       } else {
         setNocErr(errMsg(e));
@@ -111,7 +140,6 @@ export default function AdminVerification() {
     }
   };
 
-  // Fetch Academic Profile
   const fetchAcademicDetail = async (cId: string) => {
     if (!cId.trim()) return;
     setLoadingAcademic(true);
@@ -119,10 +147,14 @@ export default function AdminVerification() {
     setAcademicMsg('');
     setAcademicConflict(false);
     try {
-      const data = await apiGet<CandidateAcademicDetailDto>(`/admin/candidates/${cId.trim()}/academic`);
+      const data = await apiGet<CandidateAcademicDetailDto>(
+        `/admin/candidates/${cId.trim()}/academic`
+      );
       setAcademicDetail(data);
       setSupportingEvidenceId(data.activeNocEvidenceId ? String(data.activeNocEvidenceId) : '');
-      setAcademicDecision(data.finalYearStatus === 'CLAIMED_FINAL_YEAR' ? 'APPROVE' : 'VERIFY_NOT_FINAL_YEAR');
+      setAcademicDecision(
+        data.finalYearStatus === 'CLAIMED_FINAL_YEAR' ? 'APPROVE' : 'VERIFY_NOT_FINAL_YEAR'
+      );
     } catch (e: any) {
       setAcademicErr(errMsg(e));
       setAcademicDetail(null);
@@ -131,7 +163,6 @@ export default function AdminVerification() {
     }
   };
 
-  // Submit Academic Review
   const handleAcademicReview = async () => {
     if (!academicDetail) return;
     if (!academicNotes.trim()) {
@@ -139,7 +170,9 @@ export default function AdminVerification() {
       return;
     }
     if (academicDecision === 'APPROVE' && !supportingEvidenceId.trim()) {
-      setAcademicErr('Approving final-year standing requires a valid supporting NOC evidence reference.');
+      setAcademicErr(
+        'Approving final-year standing requires a valid supporting NOC evidence reference.'
+      );
       return;
     }
 
@@ -152,7 +185,9 @@ export default function AdminVerification() {
       const payload = {
         decision: academicDecision,
         notes: academicNotes.trim(),
-        supportingEvidenceId: supportingEvidenceId.trim() ? Number(supportingEvidenceId.trim()) : null,
+        supportingEvidenceId: supportingEvidenceId.trim()
+          ? Number(supportingEvidenceId.trim())
+          : null,
         expectedVersion: academicDetail.version,
       };
 
@@ -161,14 +196,17 @@ export default function AdminVerification() {
         payload
       );
 
-      setAcademicMsg(`Academic standing reviewed: Candidate ${result.candidateId} status is now ${result.finalYearStatus} (Version v${result.version}).`);
+      setAcademicMsg(
+        `Academic standing reviewed: Candidate ${result.candidateId} status is now ${result.finalYearStatus} (Version v${result.version}).`
+      );
       setAcademicNotes('');
-      // Reload updated record
       await fetchAcademicDetail(String(academicDetail.candidateId));
     } catch (e: any) {
       if (e.status === 409) {
         setAcademicConflict(true);
-        setAcademicErr('Optimistic concurrency conflict (HTTP 409): Candidate updated their academic declaration or another administrator reviewed this record concurrently. Please refresh.');
+        setAcademicErr(
+          'Optimistic concurrency conflict (HTTP 409): Candidate updated their academic declaration or another administrator reviewed this record concurrently. Please refresh.'
+        );
       } else {
         setAcademicErr(errMsg(e));
       }
@@ -177,7 +215,6 @@ export default function AdminVerification() {
     }
   };
 
-  // Quick switch from NOC to Academic Review
   const inspectCandidateAcademic = (cId: number) => {
     setCandidateIdInput(String(cId));
     setActiveTab('academic');
@@ -185,314 +222,439 @@ export default function AdminVerification() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[var(--na-border)] pb-5">
         <div>
-          <h1 className="font-display text-[24px] font-bold text-ink">Verification & Governance</h1>
-          <p className="mt-1 text-[13.5px] text-navy-500">
-            Authoritative administrator review for institutional No Objection Certificates and candidate academic declarations.
+          <h1 className="font-display text-[28px] font-semibold tracking-tight text-[var(--na-ink-primary)]">
+            Verification & governance
+          </h1>
+          <p className="mt-1.5 max-w-2xl text-[15px] text-[var(--na-ink-secondary)]">
+            Review institutional No Objection Certificates and candidate academic standing declarations.
           </p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => { void fetchNocQueue(); if (academicDetail) void fetchAcademicDetail(String(academicDetail.candidateId)); }}
-            className="btn-ghost btn-sm"
-          >
-            <RefreshCw className="h-4 w-4" /> Refresh
-          </button>
-        </div>
-      </div>
-
-      {/* Metric Cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          label="Pending NOC Submissions"
-          value={loadingNocs ? '…' : nocQueue.length}
-          sub="Official certificates awaiting review"
-          icon={<FileText className="h-5 w-5" />}
-          tone={nocQueue.length > 0 ? 'saffron' : 'leaf'}
-        />
-        <StatCard
-          label="Active Governance Gate"
-          value="Deterministic"
-          sub="Requires NOC + Academic clearance"
-          icon={<ShieldCheck className="h-5 w-5" />}
-          tone="navy"
-        />
-        <StatCard
-          label="Concurrency Protection"
-          value="OCC (v4)"
-          sub="Database-enforced @Version lock"
-          icon={<ShieldAlert className="h-5 w-5" />}
-          tone="leaf"
-        />
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b border-navy-200">
         <button
+          type="button"
+          onClick={() => {
+            void fetchNocQueue();
+            if (academicDetail) void fetchAcademicDetail(String(academicDetail.candidateId));
+          }}
+          className="btn-ghost btn-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--na-accent)]"
+        >
+          <RefreshCw className="h-4 w-4" aria-hidden="true" />
+          Refresh
+        </button>
+      </div>
+
+      <MetricBand
+        items={[
+          {
+            label: 'Pending NOC submissions',
+            value: loadingNocs ? '…' : fmtNum(nocQueue.length),
+            sub: 'Uploaded certificates awaiting review',
+            accent: nocQueue.length > 0,
+          },
+          {
+            label: 'Conflict-free declarations',
+            value: loadingNocs
+              ? '…'
+              : fmtNum(nocQueue.filter((item) => item.declaresNoAcademicConflict).length),
+            sub: 'Within pending NOC queue',
+          },
+          {
+            label: 'Claimed final-year',
+            value: loadingNocs
+              ? '…'
+              : fmtNum(
+                  nocQueue.filter((item) => item.academicFinalYearStatus === 'CLAIMED_FINAL_YEAR')
+                    .length
+                ),
+            sub: 'Pending standing authorization',
+          },
+          {
+            label: 'Loaded academic record',
+            value: academicDetail ? `#${academicDetail.candidateId}` : 'None',
+            sub: academicDetail
+              ? formatEnumLabel(academicDetail.finalYearStatus)
+              : 'Select from queue or ID lookup',
+          },
+        ]}
+      />
+
+      <div
+        role="tablist"
+        aria-label="Verification sections"
+        className="flex flex-wrap gap-1 border-b border-[var(--na-border)]"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'noc'}
           onClick={() => setActiveTab('noc')}
-          className={`flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-semibold transition ${
+          className={`flex min-h-[44px] items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-[14px] font-medium transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--na-accent)] active:opacity-80 disabled:opacity-50 ${
             activeTab === 'noc'
-              ? 'border-saffron-500 text-saffron-600'
-              : 'border-transparent text-navy-500 hover:text-ink'
+              ? 'border-[var(--na-accent)] text-[var(--na-ink-primary)]'
+              : 'border-transparent text-[var(--na-ink-secondary)] hover:text-[var(--na-ink-primary)]'
           }`}
         >
-          <FileText className="h-4 w-4" />
-          Institutional NOC Queue
+          <FileText className="h-4 w-4" aria-hidden="true" />
+          Institutional NOC queue
           {nocQueue.length > 0 && (
-            <span className="rounded-full bg-saffron-100 px-2 py-0.5 text-[11px] font-bold text-saffron-700">
-              {nocQueue.length}
-            </span>
+            <Badge tone="saffron">
+              <span className="tabular-nums">{fmtNum(nocQueue.length)}</span>
+            </Badge>
           )}
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'academic'}
           onClick={() => setActiveTab('academic')}
-          className={`flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-semibold transition ${
+          className={`flex min-h-[44px] items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-[14px] font-medium transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--na-accent)] active:opacity-80 disabled:opacity-50 ${
             activeTab === 'academic'
-              ? 'border-saffron-500 text-saffron-600'
-              : 'border-transparent text-navy-500 hover:text-ink'
+              ? 'border-[var(--na-accent)] text-[var(--na-ink-primary)]'
+              : 'border-transparent text-[var(--na-ink-secondary)] hover:text-[var(--na-ink-primary)]'
           }`}
         >
-          <GraduationCap className="h-4 w-4" />
-          Academic Status Verification
+          <GraduationCap className="h-4 w-4" aria-hidden="true" />
+          Academic review
         </button>
       </div>
 
-      {/* ===================== TAB 1: NOC QUEUE ===================== */}
       {activeTab === 'noc' && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {nocErr && <Callout tone="danger">{nocErr}</Callout>}
           {nocMsg && <Callout tone="success">{nocMsg}</Callout>}
 
           <SectionHeader
-            title="Pending Institutional NOC Reviews"
-            sub="Review signed certificates uploaded by candidates. Verifying an NOC activates eligibility under rules requiring institutional clearance."
+            title="Pending institutional NOC reviews"
+            sub="Review signed certificates uploaded by candidates. Verifying an NOC activates eligibility under institutional clearance rules."
           />
 
           {loadingNocs ? (
             <Spinner label="Loading pending NOC queue…" />
           ) : nocQueue.length === 0 ? (
-            <div className="card p-10 text-center">
-              <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-500" />
-              <div className="font-display mt-3 text-base font-bold text-ink">No Pending NOC Submissions</div>
-              <p className="mt-1 text-sm text-navy-500">
+            <div className="rounded-[var(--na-radius-lg)] border border-[var(--na-border)] bg-[var(--na-surface)] p-10 text-center">
+              <CheckCircle2
+                className="mx-auto h-8 w-8 text-[var(--na-status-success-text)]"
+                aria-hidden="true"
+              />
+              <div className="font-display mt-3 text-[16px] font-semibold text-[var(--na-ink-primary)]">
+                No pending NOC submissions
+              </div>
+              <p className="mt-1 text-[14px] text-[var(--na-ink-secondary)]">
                 All submitted institutional No Objection Certificates have been reviewed.
               </p>
             </div>
           ) : (
             <div className="space-y-4">
               {nocQueue.map((item) => (
-                <div key={item.id} className="card p-5 transition hover:border-navy-300">
+                <article
+                  key={item.id}
+                  className="rounded-[var(--na-radius-lg)] border border-[var(--na-border)] bg-[var(--na-surface)] p-5"
+                >
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-display text-base font-bold text-ink">{item.candidateName}</span>
-                        <span className="text-xs text-navy-400">ID #{item.candidateId}</span>
-                        <Badge tone="amber" dot>SUBMITTED (v{item.version})</Badge>
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <h3 className="font-display text-[17px] font-semibold text-[var(--na-ink-primary)]">
+                          {item.candidateName}
+                        </h3>
+                        <span className="tabular-nums text-[13px] text-[var(--na-ink-secondary)]">
+                          ID #{item.candidateId}
+                        </span>
+                        <Badge tone="amber">SUBMITTED (v{item.version})</Badge>
                       </div>
-                      <div className="text-xs text-navy-500">
-                        {item.candidateEmail} · {item.candidatePhone}
+                      <div className="flex flex-wrap gap-4 text-[13px] text-[var(--na-ink-secondary)]">
+                        <span>{item.candidateEmail}</span>
+                        <span className="tabular-nums">{item.candidatePhone}</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
+                        type="button"
                         onClick={() => void handleDownloadNoc(item)}
-                        className="btn-ghost btn-sm"
+                        className="btn-ghost btn-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--na-accent)]"
                         title="Download uploaded PDF document"
                       >
-                        <Download className="h-3.5 w-3.5" /> Download PDF
+                        <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                        Download PDF
                       </button>
                       <button
+                        type="button"
                         onClick={() => inspectCandidateAcademic(item.candidateId)}
-                        className="btn-ghost btn-sm"
-                        title="Open Candidate Academic Review"
+                        className="btn-ghost btn-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--na-accent)]"
+                        title="Open candidate academic review"
                       >
-                        <GraduationCap className="h-3.5 w-3.5" /> Academic Review <ArrowRight className="h-3 w-3" />
+                        <GraduationCap className="h-3.5 w-3.5" aria-hidden="true" />
+                        Academic review
+                        <ArrowRight className="h-3 w-3" aria-hidden="true" />
                       </button>
                     </div>
                   </div>
 
-                  {/* Document & Signatory Context */}
-                  <div className="mt-4 grid gap-4 rounded-xl bg-navy-50/60 p-4 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="mt-4 grid gap-4 rounded-[var(--na-radius-md)] bg-[var(--na-well)] p-4 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
                     <div>
-                      <span className="font-semibold text-navy-500">Issuing Institution:</span>
-                      <div className="mt-0.5 font-medium text-ink">{item.issuingInstitution}</div>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-navy-500">Signatory:</span>
-                      <div className="mt-0.5 font-medium text-ink">
-                        {item.signatoryName} ({item.signatoryRole})
+                      <div className="text-[12px] font-medium text-[var(--na-ink-secondary)]">
+                        Issuing institution
                       </div>
-                      <div className="text-[11px] text-navy-400">{item.signatoryEmail}</div>
+                      <div className="mt-0.5 font-medium text-[var(--na-ink-primary)]">
+                        {item.issuingInstitution}
+                      </div>
                     </div>
                     <div>
-                      <span className="font-semibold text-navy-500">Validity Window:</span>
-                      <div className="mt-0.5 font-medium text-ink">
+                      <div className="text-[12px] font-medium text-[var(--na-ink-secondary)]">
+                        Signatory
+                      </div>
+                      <div className="mt-0.5 font-medium text-[var(--na-ink-primary)]">
+                        {item.signatoryName} ({formatEnumLabel(item.signatoryRole)})
+                      </div>
+                      <div className="text-[12px] text-[var(--na-ink-secondary)]">
+                        {item.signatoryEmail}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[12px] font-medium text-[var(--na-ink-secondary)]">
+                        Validity window
+                      </div>
+                      <div className="tabular-nums mt-0.5 font-medium text-[var(--na-ink-primary)]">
                         {item.validFrom || '—'} to {item.validUntil || '—'}
                       </div>
                     </div>
                     <div>
-                      <span className="font-semibold text-navy-500">Conflict Declaration:</span>
-                      <div className="mt-0.5 font-medium text-emerald-700">
-                        {item.declaresNoAcademicConflict ? '✓ No conflict certified' : '✗ Conflict declared'}
+                      <div className="text-[12px] font-medium text-[var(--na-ink-secondary)]">
+                        Conflict declaration
+                      </div>
+                      <div
+                        className={`mt-0.5 font-medium ${
+                          item.declaresNoAcademicConflict
+                            ? 'text-[var(--na-status-success-text)]'
+                            : 'text-[var(--na-status-error-text)]'
+                        }`}
+                      >
+                        {item.declaresNoAcademicConflict
+                          ? 'No conflict certified'
+                          : 'Conflict declared'}
                       </div>
                     </div>
                   </div>
 
-                  {/* Signatory Validation Warning if any */}
                   {item.signatoryValidationWarning && (
-                    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
-                      <AlertTriangle className="mr-1.5 inline h-3.5 w-3.5 text-amber-600" />
-                      <span className="font-semibold">Signatory Advisory:</span> {item.signatoryValidationWarning}
+                    <div className="mt-3">
+                      <Callout tone="warn" title="Signatory advisory">
+                        {item.signatoryValidationWarning}
+                      </Callout>
                     </div>
                   )}
 
-                  {/* Candidate Academic Standing Context */}
-                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-navy-100 pt-3 text-xs text-navy-600">
-                    <span className="font-semibold text-navy-500">Academic Context:</span>
+                  <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-[var(--na-border)] pt-3 text-[13px] text-[var(--na-ink-secondary)]">
+                    <span className="font-medium text-[var(--na-ink-primary)]">
+                      Academic context:
+                    </span>
                     <span>{item.academicDegreeProgram || 'Program unspecified'}</span>
-                    <span>·</span>
                     <span>{item.academicInstitutionName || 'Institution unstated'}</span>
-                    <span>·</span>
-                    <span>Year {item.currentAcademicYear || '?'} of {item.programDurationYears || '?'}</span>
-                    <span>·</span>
-                    <Badge tone={item.academicFinalYearStatus === 'CLAIMED_FINAL_YEAR' ? 'amber' : 'navy'}>
-                      {item.academicFinalYearStatus || 'UNKNOWN'}
+                    <span className="tabular-nums">
+                      Year {item.currentAcademicYear || '?'} of {item.programDurationYears || '?'}
+                    </span>
+                    <Badge
+                      tone={
+                        item.academicFinalYearStatus === 'CLAIMED_FINAL_YEAR' ? 'amber' : 'navy'
+                      }
+                    >
+                      {formatEnumLabel(item.academicFinalYearStatus || 'UNKNOWN')}
                     </Badge>
                   </div>
 
-                  {/* Action Bar */}
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-navy-100 pt-3">
-                    <div className="text-[11.5px] text-navy-400">
-                      Fingerprint: <span className="font-mono">{item.documentSha256 ? item.documentSha256.substring(0, 16) + '…' : '—'}</span>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => { setSelectedNoc(item); setNocAction('clarify'); setNocNotes(''); }}
-                        className="btn-ghost btn-sm text-amber-700 hover:bg-amber-50"
-                      >
-                        <HelpCircle className="h-3.5 w-3.5" /> Request Clarification
-                      </button>
-                      <button
-                        onClick={() => { setSelectedNoc(item); setNocAction('reject'); setNocNotes(''); }}
-                        className="btn-ghost btn-sm text-red-600 hover:bg-red-50"
-                      >
-                        <XCircle className="h-3.5 w-3.5" /> Reject NOC
-                      </button>
-                      <button
-                        onClick={() => { setSelectedNoc(item); setNocAction('verify'); setNocNotes('Approved after verifying institutional signatory and dates.'); }}
-                        className="btn-primary btn-sm"
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Approve NOC
-                      </button>
-                    </div>
+                  <div className="mt-3">
+                    <Disclosure label="Document verification metadata">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-[12px] text-[var(--na-ink-secondary)]">
+                          SHA-256 document digest
+                        </span>
+                        <span className="na-mono text-[var(--na-ink-primary)]">
+                          {item.documentSha256 || '—'}
+                        </span>
+                      </div>
+                    </Disclosure>
                   </div>
-                </div>
+
+                  <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-[var(--na-border)] pt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedNoc(item);
+                        setNocAction('clarify');
+                        setNocNotes('');
+                      }}
+                      className="btn-ghost btn-sm text-[var(--na-status-warning-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--na-accent)]"
+                    >
+                      <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                      Request clarification
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedNoc(item);
+                        setNocAction('reject');
+                        setNocNotes('');
+                      }}
+                      className="btn-danger btn-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--na-accent)]"
+                    >
+                      <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                      Reject NOC
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedNoc(item);
+                        setNocAction('verify');
+                        setNocNotes(
+                          'Approved after verifying institutional signatory and validity dates.'
+                        );
+                      }}
+                      className="btn-primary btn-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--na-accent)]"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      Approve NOC
+                    </button>
+                  </div>
+                </article>
               ))}
             </div>
           )}
 
-          {/* Modal / Dialog for NOC Review Actions */}
-          {selectedNoc && nocAction && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4">
-              <div className="card w-full max-w-lg p-6 shadow-2xl">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-display text-lg font-bold text-ink">
-                      {nocAction === 'verify' ? 'Approve Institutional NOC' : nocAction === 'reject' ? 'Reject Institutional NOC' : 'Request NOC Clarification'}
-                    </h3>
-                    <p className="mt-1 text-xs text-navy-500">
-                      Candidate: {selectedNoc.candidateName} (ID #{selectedNoc.candidateId}) · NOC #{selectedNoc.id} (Version v{selectedNoc.version})
-                    </p>
-                  </div>
-                  <button onClick={() => { setSelectedNoc(null); setNocAction(null); }} className="text-navy-400 hover:text-ink">
-                    ✕
-                  </button>
-                </div>
+          <Modal
+            open={!!(selectedNoc && nocAction)}
+            onClose={() => {
+              setSelectedNoc(null);
+              setNocAction(null);
+            }}
+            title={
+              nocAction === 'verify'
+                ? 'Approve institutional NOC'
+                : nocAction === 'reject'
+                  ? 'Reject institutional NOC'
+                  : 'Request NOC clarification'
+            }
+          >
+            {selectedNoc && nocAction && (
+              <div className="space-y-4">
+                <p className="tabular-nums text-[13px] text-[var(--na-ink-secondary)]">
+                  Candidate: {selectedNoc.candidateName} (ID #{selectedNoc.candidateId}), NOC #
+                  {selectedNoc.id} (v{selectedNoc.version})
+                </p>
 
-                <div className="mt-4 space-y-3">
-                  {nocAction === 'reject' && (
-                    <div>
-                      <label className="label">Rejection Reason Code</label>
-                      <select
-                        className="input"
-                        value={nocReasonCode}
-                        onChange={(e) => setNocReasonCode(e.target.value)}
-                      >
-                        <option value="INSTITUTIONAL_NOC_REJECTED">INSTITUTIONAL_NOC_REJECTED — Non-compliant document</option>
-                        <option value="INSTITUTIONAL_NOC_EXPIRED">INSTITUTIONAL_NOC_EXPIRED — Validity window elapsed</option>
-                        <option value="UNAUTHORIZED_NOC_SIGNATORY">UNAUTHORIZED_NOC_SIGNATORY — Signatory unauthorized</option>
-                        <option value="NOC_ACADEMIC_CONFLICT_DECLARED">NOC_ACADEMIC_CONFLICT_DECLARED — Academic conflict present</option>
-                      </select>
-                    </div>
-                  )}
-
+                {nocAction === 'reject' && (
                   <div>
-                    <label className="label">
-                      {nocAction === 'verify' ? 'Review Notes (Optional)' : 'Review Notes / Feedback (Required)'}
+                    <label htmlFor="noc-reject-reason" className="label">
+                      Rejection reason code
                     </label>
-                    <textarea
-                      className="input min-h-[90px]"
-                      placeholder={
-                        nocAction === 'verify'
-                          ? 'Optional review notes…'
-                          : nocAction === 'reject'
-                            ? 'Explain reason for rejection to candidate…'
-                            : 'Specify required clarifications from student or college authority…'
-                      }
-                      value={nocNotes}
-                      onChange={(e) => setNocNotes(e.target.value)}
-                    />
+                    <select
+                      id="noc-reject-reason"
+                      className="input"
+                      value={nocReasonCode}
+                      onChange={(e) => setNocReasonCode(e.target.value)}
+                    >
+                      <option value="INSTITUTIONAL_NOC_REJECTED">
+                        INSTITUTIONAL_NOC_REJECTED: Non-compliant document
+                      </option>
+                      <option value="INSTITUTIONAL_NOC_EXPIRED">
+                        INSTITUTIONAL_NOC_EXPIRED: Validity window elapsed
+                      </option>
+                      <option value="UNAUTHORIZED_NOC_SIGNATORY">
+                        UNAUTHORIZED_NOC_SIGNATORY: Signatory unauthorized
+                      </option>
+                      <option value="NOC_ACADEMIC_CONFLICT_DECLARED">
+                        NOC_ACADEMIC_CONFLICT_DECLARED: Academic conflict present
+                      </option>
+                    </select>
                   </div>
+                )}
 
-                  <div className="rounded-lg bg-navy-50 p-2.5 text-[11.5px] text-navy-600">
-                    <span className="font-semibold">Optimistic Lock Check:</span> Verifying with Expected Version: <code>v{selectedNoc.version}</code>.
-                  </div>
+                <div>
+                  <label htmlFor="noc-review-notes" className="label">
+                    {nocAction === 'verify'
+                      ? 'Review notes (optional)'
+                      : 'Review notes / feedback (required)'}
+                  </label>
+                  <textarea
+                    id="noc-review-notes"
+                    className="input min-h-[90px]"
+                    placeholder={
+                      nocAction === 'verify'
+                        ? 'Optional review notes…'
+                        : nocAction === 'reject'
+                          ? 'Explain reason for rejection to candidate…'
+                          : 'Specify required clarifications from student or college authority…'
+                    }
+                    value={nocNotes}
+                    onChange={(e) => setNocNotes(e.target.value)}
+                  />
                 </div>
 
-                <div className="mt-6 flex justify-end gap-2">
+                <div className="rounded-[var(--na-radius-md)] bg-[var(--na-well)] p-3 text-[12px] text-[var(--na-ink-secondary)]">
+                  Optimistic lock check: submitting with expected version{' '}
+                  <code className="na-mono text-[var(--na-ink-primary)]">
+                    v{selectedNoc.version}
+                  </code>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
                   <button
-                    onClick={() => { setSelectedNoc(null); setNocAction(null); }}
-                    className="btn-ghost btn-sm"
+                    type="button"
+                    onClick={() => {
+                      setSelectedNoc(null);
+                      setNocAction(null);
+                    }}
+                    className="btn-ghost btn-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--na-accent)]"
                     disabled={submittingNoc}
                   >
                     Cancel
                   </button>
                   <button
+                    type="button"
                     onClick={() => void handleNocDecision()}
                     disabled={submittingNoc || (nocAction !== 'verify' && !nocNotes.trim())}
-                    className={`btn-sm ${nocAction === 'verify' ? 'btn-primary' : nocAction === 'reject' ? 'btn-danger' : 'btn-dark'}`}
+                    className={`btn-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--na-accent)] ${
+                      nocAction === 'verify'
+                        ? 'btn-primary'
+                        : nocAction === 'reject'
+                          ? 'btn-danger'
+                          : 'btn-dark'
+                    }`}
                   >
-                    {submittingNoc ? 'Submitting…' : nocAction === 'verify' ? 'Confirm Approval' : nocAction === 'reject' ? 'Confirm Rejection' : 'Send Clarification Request'}
+                    {submittingNoc
+                      ? 'Submitting…'
+                      : nocAction === 'verify'
+                        ? 'Confirm approval'
+                        : nocAction === 'reject'
+                          ? 'Confirm rejection'
+                          : 'Send clarification request'}
                   </button>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </Modal>
         </div>
       )}
 
-      {/* ===================== TAB 2: ACADEMIC VERIFICATION ===================== */}
       {activeTab === 'academic' && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {academicErr && <Callout tone="danger">{academicErr}</Callout>}
           {academicMsg && <Callout tone="success">{academicMsg}</Callout>}
 
           <SectionHeader
-            title="Candidate Academic Review & Status Authorization"
+            title="Candidate academic review & status authorization"
             sub="Review candidate-declared enrollment data against supporting evidence. Authorizing final-year standing enables allocation into final-year positions."
           />
 
-          {/* Lookup Input */}
-          <div className="card p-5">
-            <label className="label">Inspect Candidate by ID</label>
-            <div className="flex gap-2">
+          <div className="rounded-[var(--na-radius-lg)] border border-[var(--na-border)] bg-[var(--na-surface)] p-5">
+            <label htmlFor="inspect-candidate-id" className="label">
+              Inspect candidate by ID
+            </label>
+            <div className="flex flex-wrap gap-2">
               <input
-                className="input max-w-xs"
+                id="inspect-candidate-id"
+                className="input max-w-xs tabular-nums"
                 type="number"
                 placeholder="Candidate ID (e.g. 101)…"
                 value={candidateIdInput}
@@ -500,51 +662,53 @@ export default function AdminVerification() {
                 onKeyDown={(e) => e.key === 'Enter' && void fetchAcademicDetail(candidateIdInput)}
               />
               <button
+                type="button"
                 onClick={() => void fetchAcademicDetail(candidateIdInput)}
                 disabled={loadingAcademic || !candidateIdInput.trim()}
-                className="btn-primary"
+                className="btn-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--na-accent)]"
               >
-                <Search className="h-4 w-4" />
-                {loadingAcademic ? 'Loading…' : 'Inspect Academic Profile'}
+                <Search className="h-4 w-4" aria-hidden="true" />
+                {loadingAcademic ? 'Loading…' : 'Inspect academic profile'}
               </button>
             </div>
           </div>
 
-          {/* Detail & Decision Form */}
           {academicDetail && (
-            <div className="space-y-4">
-              {/* Conflict Callout if 409 */}
+            <div className="space-y-5">
               {academicConflict && (
-                <div className="card border-amber-300 bg-amber-50 p-4">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="h-5 w-5 text-amber-600" />
-                    <div>
-                      <div className="font-semibold text-amber-900">Academic Concurrency Conflict (HTTP 409)</div>
-                      <p className="mt-1 text-xs text-amber-800">
-                        The candidate modified their academic declaration or another administrator completed a review while this view was open.
-                      </p>
-                      <button
-                        onClick={() => void fetchAcademicDetail(String(academicDetail.candidateId))}
-                        className="btn-ghost btn-sm mt-3"
-                      >
-                        <RefreshCw className="h-3.5 w-3.5" /> Refresh Latest Data
-                      </button>
-                    </div>
+                <Callout tone="warn" title="Academic concurrency conflict (HTTP 409)">
+                  <span>
+                    The candidate modified their academic declaration or another administrator
+                    completed a review while this view was open.
+                  </span>
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onClick={() => void fetchAcademicDetail(String(academicDetail.candidateId))}
+                      className="btn-ghost btn-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--na-accent)]"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                      Refresh latest data
+                    </button>
                   </div>
-                </div>
+                </Callout>
               )}
 
-              {/* Candidate Academic Details */}
-              <div className="card p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-navy-100 pb-4">
+              <div className="rounded-[var(--na-radius-lg)] border border-[var(--na-border)] bg-[var(--na-surface)] p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--na-border)] pb-4">
                   <div>
-                    <div className="font-display text-lg font-bold text-ink">{academicDetail.candidateName}</div>
-                    <div className="text-xs text-navy-500">
-                      ID #{academicDetail.candidateId} · {academicDetail.candidateEmail}
+                    <h3 className="font-display text-[18px] font-semibold text-[var(--na-ink-primary)]">
+                      {academicDetail.candidateName}
+                    </h3>
+                    <div className="mt-0.5 flex flex-wrap gap-3 text-[13px] text-[var(--na-ink-secondary)]">
+                      <span className="tabular-nums">ID #{academicDetail.candidateId}</span>
+                      <span>{academicDetail.candidateEmail}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-navy-400">Current Status:</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[13px] text-[var(--na-ink-secondary)]">
+                      Current status:
+                    </span>
                     <Badge
                       tone={
                         academicDetail.finalYearStatus === 'VERIFIED_FINAL_YEAR'
@@ -555,75 +719,97 @@ export default function AdminVerification() {
                               ? 'red'
                               : 'gray'
                       }
-                      dot
                     >
-                      {academicDetail.finalYearStatus}
+                      {formatEnumLabel(academicDetail.finalYearStatus)}
                     </Badge>
-                    <span className="rounded-md bg-navy-100 px-2 py-0.5 text-xs font-mono font-semibold text-navy-700">
-                      v{academicDetail.version}
-                    </span>
+                    <Badge tone="navy">
+                      <span className="na-mono">v{academicDetail.version}</span>
+                    </Badge>
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-4 text-xs sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="rounded-xl bg-navy-50/60 p-3.5">
-                    <span className="font-semibold text-navy-500">Institution:</span>
-                    <div className="mt-1 font-medium text-ink">{academicDetail.institutionName || 'Unstated'}</div>
-                    <div className="text-[11px] text-navy-400">AISHE: {academicDetail.institutionAisheCode || 'N/A'}</div>
-                  </div>
-                  <div className="rounded-xl bg-navy-50/60 p-3.5">
-                    <span className="font-semibold text-navy-500">Program & Enrollment:</span>
-                    <div className="mt-1 font-medium text-ink">{academicDetail.degreeProgram || 'Unstated'}</div>
-                    <div className="text-[11px] text-navy-400">Status: {academicDetail.enrollmentStatus}</div>
-                  </div>
-                  <div className="rounded-xl bg-navy-50/60 p-3.5">
-                    <span className="font-semibold text-navy-500">Year & Completion:</span>
-                    <div className="mt-1 font-medium text-ink">
-                      Year {academicDetail.currentAcademicYear || '?'} of {academicDetail.programDurationYears || '?'}
+                <div className="mt-4 grid gap-4 text-[13px] sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="rounded-[var(--na-radius-md)] bg-[var(--na-well)] p-3.5">
+                    <div className="text-[12px] font-medium text-[var(--na-ink-secondary)]">
+                      Institution
                     </div>
-                    <div className="text-[11px] text-navy-400">
+                    <div className="mt-1 font-medium text-[var(--na-ink-primary)]">
+                      {academicDetail.institutionName || 'Unstated'}
+                    </div>
+                    <div className="tabular-nums text-[12px] text-[var(--na-ink-secondary)]">
+                      AISHE: {academicDetail.institutionAisheCode || 'N/A'}
+                    </div>
+                  </div>
+                  <div className="rounded-[var(--na-radius-md)] bg-[var(--na-well)] p-3.5">
+                    <div className="text-[12px] font-medium text-[var(--na-ink-secondary)]">
+                      Program & enrollment
+                    </div>
+                    <div className="mt-1 font-medium text-[var(--na-ink-primary)]">
+                      {academicDetail.degreeProgram || 'Unstated'}
+                    </div>
+                    <div className="text-[12px] text-[var(--na-ink-secondary)]">
+                      Status: {formatEnumLabel(academicDetail.enrollmentStatus)}
+                    </div>
+                  </div>
+                  <div className="rounded-[var(--na-radius-md)] bg-[var(--na-well)] p-3.5">
+                    <div className="text-[12px] font-medium text-[var(--na-ink-secondary)]">
+                      Year & completion
+                    </div>
+                    <div className="tabular-nums mt-1 font-medium text-[var(--na-ink-primary)]">
+                      Year {academicDetail.currentAcademicYear || '?'} of{' '}
+                      {academicDetail.programDurationYears || '?'}
+                    </div>
+                    <div className="tabular-nums text-[12px] text-[var(--na-ink-secondary)]">
                       Expected: {academicDetail.expectedCompletionDate || 'Not specified'}
                     </div>
                   </div>
                 </div>
 
-                {/* Supporting NOC context */}
-                <div className="mt-4 rounded-xl border border-navy-100 p-3.5 text-xs">
-                  <div className="font-semibold text-navy-700">Supporting Evidence Linkage:</div>
-                  <div className="mt-1 text-navy-600">
+                <div className="mt-4 border-t border-[var(--na-border)] pt-3.5 text-[13px]">
+                  <div className="font-medium text-[var(--na-ink-primary)]">
+                    Supporting evidence linkage
+                  </div>
+                  <div className="mt-1 text-[var(--na-ink-secondary)]">
                     {academicDetail.activeNocEvidenceId ? (
-                      <span className="inline-flex items-center gap-2">
-                        Active NOC Evidence ID: <strong>#{academicDetail.activeNocEvidenceId}</strong>
-                        <Badge tone={academicDetail.activeNocStatus === 'VERIFIED' ? 'green' : 'amber'}>
-                          {academicDetail.activeNocStatus}
+                      <span className="inline-flex flex-wrap items-center gap-2">
+                        <span>
+                          Active NOC Evidence ID:{' '}
+                          <strong className="tabular-nums font-semibold text-[var(--na-ink-primary)]">
+                            #{academicDetail.activeNocEvidenceId}
+                          </strong>
+                        </span>
+                        <Badge
+                          tone={academicDetail.activeNocStatus === 'VERIFIED' ? 'green' : 'amber'}
+                        >
+                          {formatEnumLabel(academicDetail.activeNocStatus)}
                         </Badge>
                       </span>
                     ) : (
-                      <span className="text-amber-700">
-                        ⚠ No active institutional NOC on file for this candidate. Approval of final-year standing requires a valid NOC reference.
+                      <span className="inline-flex items-center gap-1.5 text-[var(--na-status-warning-text)]">
+                        <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        No active institutional NOC on file for this candidate. Approval of
+                        final-year standing requires a valid NOC reference.
                       </span>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Review Decision Form */}
-              <div className="card p-5">
+              <div className="rounded-[var(--na-radius-lg)] border border-[var(--na-border)] bg-[var(--na-surface)] p-5">
                 <SectionHeader
-                  title="Authoritative Academic Verification Action"
+                  title="Authoritative academic verification action"
                   sub="Select an administrative decision. Approving final-year standing requires a valid supporting evidence reference."
                 />
 
-                <div className="space-y-4">
-                  {/* Decision Selector */}
+                <div className="space-y-5">
                   <div>
-                    <label className="label">Verification Decision</label>
+                    <div className="label">Verification decision</div>
                     <div className="grid gap-3 sm:grid-cols-3">
                       <label
-                        className={`flex cursor-pointer items-center gap-2 rounded-xl border p-3.5 text-xs font-semibold transition ${
+                        className={`flex cursor-pointer items-start gap-2.5 rounded-[var(--na-radius-md)] border p-3.5 text-[13px] transition-colors duration-150 ${
                           academicDecision === 'APPROVE'
-                            ? 'border-emerald-500 bg-emerald-50/60 text-emerald-900 ring-2 ring-emerald-200'
-                            : 'border-navy-200 bg-white text-navy-700 hover:bg-navy-50'
+                            ? 'border-[var(--na-status-success-text)] bg-[var(--na-status-success-bg)] text-[var(--na-status-success-text)]'
+                            : 'border-[var(--na-border-strong)] bg-[var(--na-surface)] text-[var(--na-ink-primary)] hover:bg-[var(--na-well)]'
                         }`}
                       >
                         <input
@@ -632,19 +818,21 @@ export default function AdminVerification() {
                           value="APPROVE"
                           checked={academicDecision === 'APPROVE'}
                           onChange={() => setAcademicDecision('APPROVE')}
-                          className="text-emerald-600"
+                          className="mt-0.5 accent-[var(--na-accent)]"
                         />
                         <div>
-                          <div>APPROVE</div>
-                          <div className="text-[11px] font-normal text-emerald-700">Promotes to VERIFIED_FINAL_YEAR</div>
+                          <div className="font-semibold">APPROVE</div>
+                          <div className="mt-0.5 text-[12px] opacity-90">
+                            Promotes to VERIFIED_FINAL_YEAR
+                          </div>
                         </div>
                       </label>
 
                       <label
-                        className={`flex cursor-pointer items-center gap-2 rounded-xl border p-3.5 text-xs font-semibold transition ${
+                        className={`flex cursor-pointer items-start gap-2.5 rounded-[var(--na-radius-md)] border p-3.5 text-[13px] transition-colors duration-150 ${
                           academicDecision === 'VERIFY_NOT_FINAL_YEAR'
-                            ? 'border-sky-500 bg-sky-50/60 text-sky-900 ring-2 ring-sky-200'
-                            : 'border-navy-200 bg-white text-navy-700 hover:bg-navy-50'
+                            ? 'border-[var(--na-status-info-text)] bg-[var(--na-status-info-bg)] text-[var(--na-status-info-text)]'
+                            : 'border-[var(--na-border-strong)] bg-[var(--na-surface)] text-[var(--na-ink-primary)] hover:bg-[var(--na-well)]'
                         }`}
                       >
                         <input
@@ -653,19 +841,21 @@ export default function AdminVerification() {
                           value="VERIFY_NOT_FINAL_YEAR"
                           checked={academicDecision === 'VERIFY_NOT_FINAL_YEAR'}
                           onChange={() => setAcademicDecision('VERIFY_NOT_FINAL_YEAR')}
-                          className="text-sky-600"
+                          className="mt-0.5 accent-[var(--na-accent)]"
                         />
                         <div>
-                          <div>VERIFY NOT FINAL YEAR</div>
-                          <div className="text-[11px] font-normal text-sky-700">e.g. Student is in 2nd year</div>
+                          <div className="font-semibold">VERIFY NOT FINAL YEAR</div>
+                          <div className="mt-0.5 text-[12px] opacity-90">
+                            Sets standing to non-final year
+                          </div>
                         </div>
                       </label>
 
                       <label
-                        className={`flex cursor-pointer items-center gap-2 rounded-xl border p-3.5 text-xs font-semibold transition ${
+                        className={`flex cursor-pointer items-start gap-2.5 rounded-[var(--na-radius-md)] border p-3.5 text-[13px] transition-colors duration-150 ${
                           academicDecision === 'REJECT'
-                            ? 'border-red-500 bg-red-50/60 text-red-900 ring-2 ring-red-200'
-                            : 'border-navy-200 bg-white text-navy-700 hover:bg-navy-50'
+                            ? 'border-[var(--na-status-error-text)] bg-[var(--na-status-error-bg)] text-[var(--na-status-error-text)]'
+                            : 'border-[var(--na-border-strong)] bg-[var(--na-surface)] text-[var(--na-ink-primary)] hover:bg-[var(--na-well)]'
                         }`}
                       >
                         <input
@@ -674,65 +864,74 @@ export default function AdminVerification() {
                           value="REJECT"
                           checked={academicDecision === 'REJECT'}
                           onChange={() => setAcademicDecision('REJECT')}
-                          className="text-red-600"
+                          className="mt-0.5 accent-[var(--na-accent)]"
                         />
                         <div>
-                          <div>REJECT / RESET</div>
-                          <div className="text-[11px] font-normal text-red-700">Resets status to UNKNOWN</div>
+                          <div className="font-semibold">REJECT / RESET</div>
+                          <div className="mt-0.5 text-[12px] opacity-90">
+                            Resets status to UNKNOWN
+                          </div>
                         </div>
                       </label>
                     </div>
                   </div>
 
-                  {/* Supporting Evidence ID */}
                   <div>
-                    <label className="label">
-                      Supporting NOC Evidence ID {academicDecision === 'APPROVE' && <span className="text-red-500">*</span>}
+                    <label htmlFor="supporting-evidence-id" className="label">
+                      Supporting NOC evidence ID{' '}
+                      {academicDecision === 'APPROVE' && (
+                        <span className="text-[var(--na-status-error-text)]">*</span>
+                      )}
                     </label>
                     <input
-                      className="input max-w-sm"
+                      id="supporting-evidence-id"
+                      className="input max-w-sm tabular-nums"
                       type="number"
                       placeholder="e.g. 10"
                       value={supportingEvidenceId}
                       onChange={(e) => setSupportingEvidenceId(e.target.value)}
                     />
-                    <div className="mt-1 text-[11.5px] text-navy-400">
-                      Must refer to a submitted or verified institutional NOC belonging to this candidate.
+                    <div className="mt-1 text-[12px] text-[var(--na-ink-secondary)]">
+                      Must refer to a submitted or verified institutional NOC belonging to this
+                      candidate.
                     </div>
                   </div>
 
-                  {/* Review Notes */}
                   <div>
-                    <label className="label">
-                      Reviewer Justification & Audit Notes <span className="text-red-500">*</span>
+                    <label htmlFor="academic-review-notes" className="label">
+                      Reviewer justification & audit notes{' '}
+                      <span className="text-[var(--na-status-error-text)]">*</span>
                     </label>
                     <textarea
+                      id="academic-review-notes"
                       className="input min-h-[90px]"
                       placeholder="Explain basis for approval or rejection (e.g. Verified enrolled in B.Tech semester 8 against university records)…"
                       value={academicNotes}
                       onChange={(e) => setAcademicNotes(e.target.value)}
                       maxLength={1000}
                     />
-                    <div className="mt-1 flex justify-between text-[11.5px] text-navy-400">
-                      <span>Mandatory for audit trail and compliance ledger.</span>
-                      <span>{academicNotes.length} / 1000</span>
+                    <div className="mt-1 flex justify-between text-[12px] text-[var(--na-ink-secondary)]">
+                      <span>Recorded in the audit trail.</span>
+                      <span className="tabular-nums">{academicNotes.length} / 1000</span>
                     </div>
                   </div>
 
-                  {/* Concurrency Token Info */}
-                  <div className="rounded-lg bg-navy-50 p-2.5 text-[11.5px] text-navy-600">
-                    <span className="font-semibold">Optimistic Lock Check:</span> Submitting with Expected Version: <code>v{academicDetail.version}</code>.
+                  <div className="rounded-[var(--na-radius-md)] bg-[var(--na-well)] p-3 text-[12px] text-[var(--na-ink-secondary)]">
+                    Optimistic lock check: submitting with expected version{' '}
+                    <code className="na-mono text-[var(--na-ink-primary)]">
+                      v{academicDetail.version}
+                    </code>
                   </div>
 
-                  {/* Submit Button */}
-                  <div className="flex justify-end gap-2 pt-2">
+                  <div className="flex justify-end pt-1">
                     <button
+                      type="button"
                       onClick={() => void handleAcademicReview()}
                       disabled={submittingAcademic || !academicNotes.trim()}
-                      className="btn-primary"
+                      className="btn-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--na-accent)]"
                     >
-                      <UserCheck className="h-4 w-4" />
-                      {submittingAcademic ? 'Recording Review…' : 'Submit Authoritative Review'}
+                      <UserCheck className="h-4 w-4" aria-hidden="true" />
+                      {submittingAcademic ? 'Recording review…' : 'Submit review'}
                     </button>
                   </div>
                 </div>

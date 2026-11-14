@@ -1,20 +1,68 @@
 import React from 'react';
 
-export function ScoreRing({ value, size = 72, stroke = 7, label }: { value: number; size?: number; stroke?: number; label?: string }) {
+export function ScoreRing({
+  value,
+  size = 72,
+  stroke = 7,
+  label,
+}: {
+  value: number;
+  size?: number;
+  stroke?: number;
+  label?: string;
+}) {
+  const clamped = Math.max(0, Math.min(100, value));
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const off = c * (1 - Math.max(0, Math.min(100, value)) / 100);
-  const color = value >= 80 ? '#1b8a5a' : value >= 50 ? '#ee8420' : '#dc2626';
+  const off = c * (1 - clamped / 100);
+  const color =
+    clamped >= 80
+      ? 'var(--na-status-success-text)'
+      : clamped >= 50
+        ? 'var(--na-accent)'
+        : 'var(--na-status-error-text)';
+
   return (
-    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e8edf5" strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={off} style={{ transition: 'stroke-dashoffset .6s cubic-bezier(.2,.7,.3,1)' }} />
+    <div
+      className="relative inline-flex items-center justify-center"
+      style={{ width: size, height: size }}
+      role="img"
+      aria-label={`${label ? `${label}: ` : 'Score '}${Math.round(clamped)} out of 100`}
+    >
+      <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="var(--na-well)"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={off}
+          className="transition-[stroke-dashoffset] duration-300 motion-reduce:transition-none"
+        />
       </svg>
       <div className="absolute flex flex-col items-center">
-        <span className="font-display text-[15px] font-bold text-ink" style={{ fontSize: size / 4.6 }}>{Math.round(value)}</span>
-        {label && <span className="text-[9px] font-semibold uppercase tracking-wide text-navy-400">{label}</span>}
+        <span
+          className="font-display tabular-nums font-bold text-[var(--na-ink-primary)]"
+          style={{ fontSize: size / 4.4 }}
+        >
+          {Math.round(clamped)}
+        </span>
+        {label && (
+          <span className="text-[11px] font-medium text-[var(--na-ink-secondary)]">
+            {label}
+          </span>
+        )}
       </div>
     </div>
   );
